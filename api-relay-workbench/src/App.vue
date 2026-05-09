@@ -451,6 +451,7 @@ async function sendMessage() {
     content: '',
     createdAt: new Date().toISOString(),
   }
+  const messagesForRequest = [...state.messages, userMessage]
 
   state.messages.push(userMessage, assistantMessage)
   userInput.value = ''
@@ -459,10 +460,10 @@ async function sendMessage() {
   if (state.config.stream) {
     const result =
       state.config.apiMode === 'responses'
-        ? await streamResponse(activeApiConfig.value, state.messages, (token) => {
+        ? await streamResponse(activeApiConfig.value, messagesForRequest, (token) => {
             assistantMessage.content += token
           })
-        : await streamChatCompletion(activeApiConfig.value, state.messages, (token) => {
+        : await streamChatCompletion(activeApiConfig.value, messagesForRequest, (token) => {
             assistantMessage.content += token
           })
     lastRequestBody.value = result.requestBody
@@ -485,8 +486,8 @@ async function sendMessage() {
   } else {
     const result =
       state.config.apiMode === 'responses'
-        ? await createResponse(activeApiConfig.value, state.messages)
-        : await createChatCompletion(activeApiConfig.value, state.messages)
+        ? await createResponse(activeApiConfig.value, messagesForRequest)
+        : await createChatCompletion(activeApiConfig.value, messagesForRequest)
     lastRequestBody.value = result.requestBody
     assistantMessage.content = result.ok
       ? (state.config.apiMode === 'responses'

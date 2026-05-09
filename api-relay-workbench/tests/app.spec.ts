@@ -85,3 +85,50 @@ test('local proxy forwards model requests without browser CORS requirements', as
     await relay.close()
   }
 })
+
+test('chat request excludes pending assistant placeholder message', async ({ page }) => {
+  let receivedBody: unknown
+  const relay = await withMockRelay((req, res) => {
+    if (req.url === '/v1/chat/completions' && req.method === 'POST') {
+      const chunks: Buffer[] = []
+      req.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        res.end('data: {"choices":[{"delta":{"content":"pong"}}]}\n\ndata: [DONE]\n\n')
+      })
+      return
+    }
+
+    res.writeHead(404, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ error: { message: 'unexpected request' } }))
+  })
+
+  try {
+    await page.goto('/')
+    await page.locator('.nav .el-menu-item').nth(2).click()
+    await page.locator('.relay-card').first().getByLabel('API Base URL').fill(relay.baseUrl)
+    await page.locator('.relay-card').first().getByLabel('API Key').fill('sk-local-proxy')
+
+    await page.locator('.nav .el-menu-item').nth(0).click()
+    await page.locator('.config-form .el-segmented__item').nth(1).click()
+
+    await page.locator('.nav .el-menu-item').nth(4).click()
+    await page.locator('.composer textarea').fill('ping')
+    await page.locator('.composer button').click()
+    await expect(page.locator('.message-assistant').getByText('pong')).toBeVisible()
+
+    expect(receivedBody).toMatchObject({
+      messages: [
+        { role: 'system' },
+        { role: 'user', content: 'ping' },
+      ],
+    })
+    expect((receivedBody as { messages: Array<{ role: string; content: string }> }).messages).not.toContainEqual({
+      role: 'assistant',
+      content: '',
+    })
+  } finally {
+    await relay.close()
+  }
+})
