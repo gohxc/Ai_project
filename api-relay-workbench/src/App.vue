@@ -72,6 +72,21 @@ const activeCompletionEndpoint = computed(() =>
   state.config.apiMode === 'responses' ? '/responses' : '/chat/completions',
 )
 
+const requestTransportLabel = computed(() =>
+  state.config.requestTransport === 'local_proxy' ? '本地代理' : '浏览器直连',
+)
+
+const proxyBaseUrlParam = computed(() => encodeURIComponent(activeApiConfig.value.baseUrl.replace(/\/+$/, '')))
+
+const activeCompletionRequestUrl = computed(() => {
+  const baseUrl = activeApiConfig.value.baseUrl.replace(/\/+$/, '')
+  if (state.config.requestTransport === 'local_proxy') {
+    return `/api/openai-proxy${activeCompletionEndpoint.value}?baseUrl=${proxyBaseUrlParam.value}`
+  }
+
+  return `${baseUrl}${activeCompletionEndpoint.value}`
+})
+
 const testerMessage = computed<ChatMessage>(() => ({
   id: 'tester_preview',
   role: 'user',
@@ -192,8 +207,11 @@ async function copyText(text: string) {
 }
 
 async function copyCurl() {
+  const requestUrl = activeCompletionRequestUrl.value.startsWith('/')
+    ? `http://127.0.0.1:5174${activeCompletionRequestUrl.value}`
+    : activeCompletionRequestUrl.value
   const curl = [
-    `curl ${activeApiConfig.value.baseUrl.replace(/\/+$/, '')}${activeCompletionEndpoint.value}`,
+    `curl ${requestUrl}`,
     `  -H "Content-Type: application/json"`,
     `  -H "Authorization: Bearer ${activeApiConfig.value.apiKey || '<API_KEY>'}"`,
     `  -d '${JSON.stringify(testerRequestBody.value)}'`,
@@ -604,6 +622,19 @@ function resetAll() {
               </el-radio-group>
             </el-form-item>
 
+            <el-form-item label="请求通道">
+              <el-segmented
+                v-model="state.config.requestTransport"
+                :options="[
+                  { label: '浏览器直连', value: 'direct' },
+                  { label: '本地代理', value: 'local_proxy' },
+                ]"
+              />
+              <p class="field-hint">
+                本地代理通过 Vite dev server 转发请求，可避开部分中转站拒绝浏览器 OPTIONS 预检的问题。
+              </p>
+            </el-form-item>
+
             <div class="form-grid">
               <el-form-item label="当前 Base URL">
                 <el-input :model-value="activeApiConfig.baseUrl" readonly placeholder="未配置" />
@@ -642,6 +673,15 @@ function resetAll() {
             </el-radio-group>
 
             <el-tag type="info" class="endpoint-tag">{{ activeCompletionEndpoint }}</el-tag>
+            <el-tag
+              :type="state.config.requestTransport === 'local_proxy' ? 'warning' : 'info'"
+              class="endpoint-tag"
+            >
+              {{ requestTransportLabel }}
+            </el-tag>
+            <p v-if="state.config.requestTransport === 'local_proxy'" class="proxy-note">
+              代理只在本地开发服务 http://127.0.0.1:5174 下可用，请求会从本机转发到当前中转站。
+            </p>
 
             <el-button type="primary" :icon="Connection" :loading="testingModels" @click="testModels">
               测试 /models
@@ -658,6 +698,7 @@ function resetAll() {
                 <strong>{{ activeCompletionEndpoint }} 请求预览</strong>
                 <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(testerRequestBody))">复制</el-button>
               </div>
+              <div class="request-url">{{ activeCompletionRequestUrl }}</div>
               <pre>{{ prettyJson(testerRequestBody) }}</pre>
             </div>
 

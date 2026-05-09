@@ -10,6 +10,7 @@ export const defaultState: AppState = {
     model: 'gpt-4.1-mini',
     activeRelayId: 'relay_default_openai',
     apiMode: 'chat_completions',
+    requestTransport: 'direct',
     stream: true,
     temperature: 0.7,
     systemPrompt: '你是一个简洁、准确的助手。',
@@ -77,6 +78,10 @@ export function loadState(): AppState {
       config.activeRelayId = legacyRelay.id
     } else if (!relayEndpoints.some((endpoint) => endpoint.id === config.activeRelayId)) {
       config.activeRelayId = relayEndpoints[0]?.id ?? defaultState.config.activeRelayId
+    }
+
+    if (config.requestTransport !== 'direct' && config.requestTransport !== 'local_proxy') {
+      config.requestTransport = defaultState.config.requestTransport
     }
 
     return {

@@ -216,6 +216,25 @@ textarea {
   width: 100%;
 }
 
+.field-hint,
+.proxy-note {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.request-url {
+  padding: 9px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #475569;
+  background: #f8fafc;
+  font-family: "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .benchmark-panel {
   display: flex;
   flex-direction: column;

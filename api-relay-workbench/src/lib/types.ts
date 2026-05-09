@@ -1,5 +1,6 @@
 export type StorageMode = 'localStorage'
 export type ApiMode = 'chat_completions' | 'responses'
+export type RequestTransport = 'direct' | 'local_proxy'
 
 export interface ApiConfig {
   baseUrl: string
@@ -7,6 +8,7 @@ export interface ApiConfig {
   model: string
   activeRelayId: string
   apiMode: ApiMode
+  requestTransport: RequestTransport
   stream: boolean
   temperature: number
   systemPrompt: string

@@ -29,6 +29,15 @@ function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, '')
 }
 
+function buildRequestUrl(config: ApiConfig, path: string) {
+  if (config.requestTransport === 'local_proxy') {
+    const params = new URLSearchParams({ baseUrl: normalizeBaseUrl(config.baseUrl) })
+    return `/api/openai-proxy${path}?${params.toString()}`
+  }
+
+  return `${normalizeBaseUrl(config.baseUrl)}${path}`
+}
+
 function headers(apiKey: string) {
   const result: HeadersInit = {
     'Content-Type': 'application/json',
@@ -64,7 +73,7 @@ export async function listModels(config: ApiConfig, options: RequestOptions = {}
   const startedAt = performance.now()
 
   try {
-    const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/models`, {
+    const response = await fetch(buildRequestUrl(config, '/models'), {
       method: 'GET',
       headers: headers(config.apiKey),
       signal: createSignal(options.timeoutMs),
@@ -138,7 +147,7 @@ export async function createChatCompletion(
   const requestBody = buildChatBody(config, messages, false)
 
   try {
-    const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/chat/completions`, {
+    const response = await fetch(buildRequestUrl(config, '/chat/completions'), {
       method: 'POST',
       headers: headers(config.apiKey),
       body: JSON.stringify(requestBody),
@@ -169,7 +178,7 @@ export async function createResponse(config: ApiConfig, messages: ChatMessage[],
   const requestBody = buildResponsesBody(config, messages, false)
 
   try {
-    const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/responses`, {
+    const response = await fetch(buildRequestUrl(config, '/responses'), {
       method: 'POST',
       headers: headers(config.apiKey),
       body: JSON.stringify(requestBody),
@@ -204,7 +213,7 @@ export async function streamChatCompletion(
   const requestBody = buildChatBody(config, messages, true)
 
   try {
-    const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/chat/completions`, {
+    const response = await fetch(buildRequestUrl(config, '/chat/completions'), {
       method: 'POST',
       headers: headers(config.apiKey),
       body: JSON.stringify(requestBody),
@@ -279,7 +288,7 @@ export async function streamResponse(
   const requestBody = buildResponsesBody(config, messages, true)
 
   try {
-    const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/responses`, {
+    const response = await fetch(buildRequestUrl(config, '/responses'), {
       method: 'POST',
       headers: headers(config.apiKey),
       body: JSON.stringify(requestBody),
