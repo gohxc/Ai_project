@@ -56,6 +56,11 @@ export interface RelayBenchmarkResult {
   modelsMs?: number
   chatMs?: number
   totalMs?: number
+  minMs?: number
+  maxMs?: number
+  avgMs?: number
+  runCount?: number
+  successCount?: number
   statusCode?: number
   error?: string
   testedAt?: string

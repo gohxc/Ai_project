@@ -115,6 +115,10 @@ textarea {
   background: #ffffff;
 }
 
+.topbar > div:first-child {
+  min-width: 0;
+}
+
 .topbar h1,
 .section-head h2 {
   margin: 0;
@@ -141,6 +145,15 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.topbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.response-mode-toggle {
+  flex-shrink: 0;
 }
 
 .section-actions {
@@ -254,28 +267,84 @@ textarea {
   gap: 16px;
 }
 
-.relay-cards {
+.relay-management-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
 }
 
-.relay-card {
-  padding: 16px;
-  border: 1px solid #dbe3ef;
+.relay-list-panel,
+.relay-settings {
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #f8fafc;
 }
 
-.relay-card-head,
-.relay-card-actions {
+.relay-list-panel {
+  overflow: hidden;
+}
+
+.relay-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.relay-list-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid #e5e7eb;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.relay-list-item:last-child {
+  border-bottom: 0;
+}
+
+.relay-list-item:hover {
+  background: #eef4ff;
+}
+
+.relay-list-item.active {
+  background: #e7efff;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.relay-list-item-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.relay-card-head {
+.relay-list-item-head strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.relay-list-item-url,
+.relay-list-item-model {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.relay-settings {
+  padding: 16px;
+}
+
+.relay-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
@@ -468,6 +537,16 @@ pre {
     flex-direction: column;
   }
 
+  .topbar {
+    height: auto;
+    min-height: 76px;
+    padding: 14px;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+
   .content {
     padding: 14px;
   }
@@ -476,7 +555,7 @@ pre {
   .tester-grid,
   .debug-panels,
   .chat-layout,
-  .relay-cards,
+  .relay-management-layout,
   .relay-form-grid,
   .model-picker {
     grid-template-columns: 1fr;

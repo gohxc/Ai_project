@@ -28,6 +28,15 @@ import {
   streamChatCompletion,
 } from './lib/openaiClient'
 
+interface BenchmarkRequestResult {
+  ok: boolean
+  statusCode?: number
+  durationMs: number
+  data?: unknown
+  error?: string
+  requestBody?: unknown
+}
+
 const state = reactive<AppState>(loadState())
 const activeTab = ref('config')
 const testingModels = ref(false)
@@ -42,7 +51,9 @@ const benchmarkResults = ref<RelayBenchmarkResult[]>([])
 const benchmarkMode = ref<'connectivity' | 'real'>('connectivity')
 const benchmarkPrompt = ref('请只回复：pong')
 const benchmarkTimeoutMs = ref(30_000)
+const benchmarkRunCount = ref(5)
 const fetchingRelayModels = ref<Record<string, boolean>>({})
+const selectedRelayId = ref(state.config.activeRelayId || state.relayEndpoints[0]?.id || '')
 
 watch(
   state,
@@ -52,6 +63,18 @@ watch(
   { deep: true },
 )
 
+watch(
+  () => [state.relayEndpoints, state.config.activeRelayId] as const,
+  () => {
+    if (selectedRelayId.value && state.relayEndpoints.some((endpoint) => endpoint.id === selectedRelayId.value)) {
+      return
+    }
+
+    selectedRelayId.value = state.config.activeRelayId || state.relayEndpoints[0]?.id || ''
+  },
+  { deep: true, immediate: true },
+)
+
 const visibleMessages = computed(() =>
   state.messages.filter((message) => message.role === 'user' || message.role === 'assistant'),
 )
@@ -59,6 +82,11 @@ const visibleMessages = computed(() =>
 const activeRelay = computed(() => {
   const selected = state.relayEndpoints.find((endpoint) => endpoint.id === state.config.activeRelayId)
   return selected ?? state.relayEndpoints[0]
+})
+
+const selectedRelay = computed(() => {
+  const selected = state.relayEndpoints.find((endpoint) => endpoint.id === selectedRelayId.value)
+  return selected ?? activeRelay.value ?? state.relayEndpoints[0]
 })
 
 const activeApiConfig = computed(() => ({
@@ -110,7 +138,10 @@ const sortedBenchmarkResults = computed(() =>
   [...benchmarkResults.value].sort((a, b) => {
     if (a.status === 'success' && b.status !== 'success') return -1
     if (a.status !== 'success' && b.status === 'success') return 1
-    return (a.totalMs ?? Number.MAX_SAFE_INTEGER) - (b.totalMs ?? Number.MAX_SAFE_INTEGER)
+    return (
+      (a.avgMs ?? a.totalMs ?? Number.MAX_SAFE_INTEGER) -
+      (b.avgMs ?? b.totalMs ?? Number.MAX_SAFE_INTEGER)
+    )
   }),
 )
 
@@ -174,8 +205,23 @@ function validateConfig() {
   return true
 }
 
+function benchmarkSourceEndpoints() {
+  return state.relayEndpoints.filter((endpoint) => endpoint.enabled && endpoint.baseUrl.trim())
+}
+
+function realBenchmarkIssues(endpoint: RelayEndpoint) {
+  return [
+    !endpoint.apiKey.trim() ? '缺少 API Key' : '',
+    !endpoint.model.trim() ? '缺少模型名称' : '',
+  ].filter(Boolean)
+}
+
+function canRunRealBenchmark(endpoint: RelayEndpoint) {
+  return realBenchmarkIssues(endpoint).length === 0
+}
+
 function validateBenchmarkConfig() {
-  const usableEndpoints = state.relayEndpoints.filter((endpoint) => endpoint.enabled && endpoint.baseUrl.trim())
+  const usableEndpoints = benchmarkSourceEndpoints()
   if (usableEndpoints.length === 0) {
     ElMessage.error('请至少启用一个中转站档案')
     activeTab.value = 'relays'
@@ -183,16 +229,9 @@ function validateBenchmarkConfig() {
   }
 
   if (benchmarkMode.value === 'real') {
-    const missingKey = usableEndpoints.find((endpoint) => !endpoint.apiKey.trim())
-    if (missingKey) {
-      ElMessage.error(`${missingKey.name} 缺少 API Key`)
-      activeTab.value = 'relays'
-      return false
-    }
-
-    const missingModel = usableEndpoints.find((endpoint) => !endpoint.model.trim())
-    if (missingModel) {
-      ElMessage.error(`${missingModel.name} 缺少模型名称`)
+    const runnableEndpoints = usableEndpoints.filter(canRunRealBenchmark)
+    if (runnableEndpoints.length === 0) {
+      ElMessage.error('真实速度测试至少需要一个已填写 Key 和模型的中转站')
       activeTab.value = 'relays'
       return false
     }
@@ -243,7 +282,7 @@ async function testModels() {
 }
 
 function addRelayEndpoint() {
-  state.relayEndpoints.push({
+  const endpoint = {
     id: createId('relay'),
     name: `中转站 ${state.relayEndpoints.length + 1}`,
     baseUrl: '',
@@ -252,18 +291,28 @@ function addRelayEndpoint() {
     models: [],
     enabled: true,
     note: '',
-  })
+  }
+  state.relayEndpoints.push(endpoint)
+  state.config.activeRelayId = endpoint.id
+  selectedRelayId.value = endpoint.id
 }
 
 function removeRelayEndpoint(id: string) {
-  state.relayEndpoints = state.relayEndpoints.filter((endpoint) => endpoint.id !== id)
+  const remaining = state.relayEndpoints.filter((endpoint) => endpoint.id !== id)
+  state.relayEndpoints = remaining
+
   if (state.config.activeRelayId === id) {
-    state.config.activeRelayId = state.relayEndpoints[0]?.id ?? ''
+    state.config.activeRelayId = remaining[0]?.id ?? ''
+  }
+
+  if (selectedRelayId.value === id) {
+    selectedRelayId.value = state.config.activeRelayId || remaining[0]?.id || ''
   }
 }
 
 function useRelayEndpoint(endpoint: RelayEndpoint) {
   state.config.activeRelayId = endpoint.id
+  selectedRelayId.value = endpoint.id
   ElMessage.success('已切换到该中转站')
 }
 
@@ -302,95 +351,168 @@ async function fetchRelayModels(endpoint: RelayEndpoint) {
   }
 }
 
-async function benchmarkRelay(endpoint: RelayEndpoint): Promise<RelayBenchmarkResult> {
-  const config = {
+function buildBenchmarkConfig(endpoint: RelayEndpoint, apiKey: string) {
+  return {
     ...state.config,
     baseUrl: endpoint.baseUrl.trim(),
-    apiKey: benchmarkMode.value === 'connectivity' ? '' : endpoint.apiKey,
+    apiKey,
     model: endpoint.model,
     stream: false,
   }
+}
 
+async function benchmarkConnectivity(endpoint: RelayEndpoint): Promise<RelayBenchmarkResult> {
+  const config = buildBenchmarkConfig(endpoint, '')
   const modelsResult = await listModels(config, { timeoutMs: benchmarkTimeoutMs.value })
   const canReachHttp = typeof modelsResult.statusCode === 'number'
-
-  if (benchmarkMode.value === 'connectivity') {
-    return {
-      id: endpoint.id,
-      name: endpoint.name,
-      baseUrl: endpoint.baseUrl,
-      model: endpoint.model,
-      status: canReachHttp ? 'success' : 'error',
-      modelsMs: modelsResult.durationMs,
-      totalMs: modelsResult.durationMs,
-      statusCode: modelsResult.statusCode,
-      error: canReachHttp ? undefined : modelsResult.error,
-      testedAt: new Date().toISOString(),
-    }
-  }
-
-  if (!modelsResult.ok) {
-    return {
-      id: endpoint.id,
-      name: endpoint.name,
-      baseUrl: endpoint.baseUrl,
-      model: endpoint.model,
-      status: 'error',
-      modelsMs: modelsResult.durationMs,
-      totalMs: modelsResult.durationMs,
-      statusCode: modelsResult.statusCode,
-      error: modelsResult.error,
-      testedAt: new Date().toISOString(),
-    }
-  }
-
-  const testMessage: ChatMessage = {
-    id: createId('msg'),
-    role: 'user',
-    content: benchmarkPrompt.value.trim() || '请只回复：pong',
-    createdAt: new Date().toISOString(),
-  }
-  const chatResult =
-    state.config.apiMode === 'responses'
-      ? await createResponse(config, [testMessage], { timeoutMs: benchmarkTimeoutMs.value })
-      : await createChatCompletion(config, [testMessage], { timeoutMs: benchmarkTimeoutMs.value })
-  const totalMs = modelsResult.durationMs + chatResult.durationMs
 
   return {
     id: endpoint.id,
     name: endpoint.name,
     baseUrl: endpoint.baseUrl,
     model: endpoint.model,
-    status: chatResult.ok ? 'success' : 'error',
+    status: canReachHttp ? 'success' : 'error',
     modelsMs: modelsResult.durationMs,
-    chatMs: chatResult.durationMs,
-    totalMs,
-    statusCode: chatResult.statusCode,
-    error: chatResult.error,
+    totalMs: modelsResult.durationMs,
+    statusCode: modelsResult.statusCode,
+    error: canReachHttp ? undefined : modelsResult.error,
     testedAt: new Date().toISOString(),
+  }
+}
+
+async function runBenchmarkGeneration(endpoint: RelayEndpoint): Promise<BenchmarkRequestResult> {
+  const config = buildBenchmarkConfig(endpoint, endpoint.apiKey)
+  const testMessage: ChatMessage = {
+    id: createId('msg'),
+    role: 'user',
+    content: benchmarkPrompt.value.trim() || '请只回复：pong',
+    createdAt: new Date().toISOString(),
+  }
+
+  return state.config.apiMode === 'responses'
+    ? await createResponse(config, [testMessage], { timeoutMs: benchmarkTimeoutMs.value })
+    : await createChatCompletion(config, [testMessage], { timeoutMs: benchmarkTimeoutMs.value })
+}
+
+function summarizeBenchmarkRuns(
+  endpoint: RelayEndpoint,
+  results: BenchmarkRequestResult[],
+  runCount: number,
+  startedAt: number,
+): RelayBenchmarkResult {
+  const successfulResults = results.filter((result) => result.ok)
+  const successfulDurations = successfulResults.map((result) => result.durationMs)
+  const firstError = results.find((result) => !result.ok)
+  const minMs = successfulDurations.length > 0 ? Math.min(...successfulDurations) : undefined
+  const maxMs = successfulDurations.length > 0 ? Math.max(...successfulDurations) : undefined
+  const avgMs =
+    successfulDurations.length > 0
+      ? Math.round(successfulDurations.reduce((sum, duration) => sum + duration, 0) / successfulDurations.length)
+      : undefined
+
+  if (successfulResults.length === 0) {
+    return {
+      id: endpoint.id,
+      name: endpoint.name,
+      baseUrl: endpoint.baseUrl,
+      model: endpoint.model,
+      status: 'error',
+      totalMs: Math.round(performance.now() - startedAt),
+      runCount,
+      successCount: 0,
+      statusCode: firstError?.statusCode,
+      error: firstError?.error || '全部测速请求失败',
+      testedAt: new Date().toISOString(),
+    }
+  }
+
+  return {
+    id: endpoint.id,
+    name: endpoint.name,
+    baseUrl: endpoint.baseUrl,
+    model: endpoint.model,
+    status: 'success',
+    chatMs: avgMs,
+    totalMs: Math.round(performance.now() - startedAt),
+    minMs,
+    maxMs,
+    avgMs,
+    runCount,
+    successCount: successfulResults.length,
+    statusCode: firstError?.statusCode ?? successfulResults[0]?.statusCode,
+    error: firstError ? `${successfulResults.length}/${runCount} 成功；${firstError.error || '部分测速请求失败'}` : undefined,
+    testedAt: new Date().toISOString(),
+  }
+}
+
+async function runRealBenchmark(endpoints: RelayEndpoint[]) {
+  const runCount = Math.max(1, Math.round(benchmarkRunCount.value || 1))
+  const startedAtByEndpoint = new Map(endpoints.map((endpoint) => [endpoint.id, performance.now()]))
+  const resultsByEndpoint = new Map(endpoints.map((endpoint) => [endpoint.id, [] as BenchmarkRequestResult[]]))
+
+  for (let runIndex = 0; runIndex < runCount; runIndex += 1) {
+    const roundResults = await Promise.all(
+      endpoints.map(async (endpoint) => ({
+        endpoint,
+        result: await runBenchmarkGeneration(endpoint),
+      })),
+    )
+
+    for (const { endpoint, result } of roundResults) {
+      const endpointResults = resultsByEndpoint.get(endpoint.id)
+      endpointResults?.push(result)
+
+      const index = benchmarkResults.value.findIndex((item) => item.id === endpoint.id)
+      if (index >= 0 && endpointResults) {
+        benchmarkResults.value[index] = summarizeBenchmarkRuns(
+          endpoint,
+          endpointResults,
+          runCount,
+          startedAtByEndpoint.get(endpoint.id) ?? performance.now(),
+        )
+      }
+    }
+  }
+
+  for (const endpoint of endpoints) {
+    const index = benchmarkResults.value.findIndex((result) => result.id === endpoint.id)
+    if (index >= 0) {
+      benchmarkResults.value[index] = summarizeBenchmarkRuns(
+        endpoint,
+        resultsByEndpoint.get(endpoint.id) ?? [],
+        runCount,
+        startedAtByEndpoint.get(endpoint.id) ?? performance.now(),
+      )
+    }
   }
 }
 
 async function runBenchmark() {
   if (!validateBenchmarkConfig()) return
 
-  const endpoints = state.relayEndpoints.filter((endpoint) => endpoint.enabled && endpoint.baseUrl.trim())
+  const endpoints = benchmarkSourceEndpoints()
   benchmarkRunning.value = true
-  benchmarkResults.value = endpoints.map((endpoint) => ({
-    id: endpoint.id,
-    name: endpoint.name,
-    baseUrl: endpoint.baseUrl,
-    model: endpoint.model,
-    status: 'pending',
-  }))
+  benchmarkResults.value = endpoints.map((endpoint) => {
+    const issues = benchmarkMode.value === 'real' ? realBenchmarkIssues(endpoint) : []
 
-  for (const endpoint of endpoints) {
-    const index = benchmarkResults.value.findIndex((result) => result.id === endpoint.id)
-    if (index >= 0) benchmarkResults.value[index].status = 'testing'
+    return {
+      id: endpoint.id,
+      name: endpoint.name,
+      baseUrl: endpoint.baseUrl,
+      model: endpoint.model,
+      status: issues.length > 0 ? 'error' : 'testing',
+      error: issues.length > 0 ? issues.join('、') : undefined,
+      testedAt: issues.length > 0 ? new Date().toISOString() : undefined,
+    }
+  })
 
-    const result = await benchmarkRelay(endpoint)
-    if (index >= 0) {
-      benchmarkResults.value[index] = result
+  if (benchmarkMode.value === 'real') {
+    await runRealBenchmark(endpoints.filter(canRunRealBenchmark))
+  } else {
+    const results = await Promise.all(endpoints.map((endpoint) => benchmarkConnectivity(endpoint)))
+    for (const result of results) {
+      const index = benchmarkResults.value.findIndex((item) => item.id === result.id)
+      if (index >= 0) benchmarkResults.value[index] = result
     }
   }
 
@@ -410,8 +532,11 @@ async function testChat() {
     content: '请只回复：pong',
     createdAt: new Date().toISOString(),
   }
-  const result =
-    state.config.apiMode === 'responses'
+  const result = state.config.stream
+    ? state.config.apiMode === 'responses'
+      ? await streamResponse(activeApiConfig.value, [testMessage], () => undefined)
+      : await streamChatCompletion(activeApiConfig.value, [testMessage], () => undefined)
+    : state.config.apiMode === 'responses'
       ? await createResponse(activeApiConfig.value, [testMessage])
       : await createChatCompletion(activeApiConfig.value, [testMessage])
   lastRequestBody.value = result.requestBody
@@ -590,6 +715,10 @@ function resetAll() {
           </p>
         </div>
         <div class="topbar-actions">
+          <el-radio-group v-model="state.config.stream" class="response-mode-toggle" size="small">
+            <el-radio-button :label="false">普通响应</el-radio-button>
+            <el-radio-button :label="true">流式输出</el-radio-button>
+          </el-radio-group>
           <el-tag type="info">Key: {{ maskedKey }}</el-tag>
           <el-button :icon="Refresh" @click="resetAll">重置本地数据</el-button>
         </div>
@@ -651,10 +780,6 @@ function resetAll() {
 
             <el-form-item label="系统提示词">
               <el-input v-model="state.config.systemPrompt" type="textarea" :rows="4" />
-            </el-form-item>
-
-            <el-form-item>
-              <el-switch v-model="state.config.stream" active-text="流式输出" inactive-text="普通响应" />
             </el-form-item>
           </el-form>
         </section>
@@ -730,36 +855,67 @@ function resetAll() {
             <el-button type="primary" :icon="Plus" @click="addRelayEndpoint">添加中转站</el-button>
           </div>
 
-          <div class="relay-cards">
-            <div v-for="endpoint in state.relayEndpoints" :key="endpoint.id" class="relay-card">
-              <div class="relay-card-head">
-                <el-switch v-model="endpoint.enabled" active-text="启用" inactive-text="停用" />
-                <div class="relay-card-actions">
-                  <el-button :icon="Connection" @click="useRelayEndpoint(endpoint)">设为当前</el-button>
+          <div class="relay-management-layout">
+            <aside class="relay-list-panel">
+              <div class="relay-list" role="list" aria-label="中转站列表">
+                <button
+                  v-for="endpoint in state.relayEndpoints"
+                  :key="endpoint.id"
+                  type="button"
+                  class="relay-list-item"
+                  :class="{ active: endpoint.id === selectedRelay?.id }"
+                  @click="selectedRelayId = endpoint.id"
+                >
+                  <div class="relay-list-item-head">
+                    <strong>{{ endpoint.name }}</strong>
+                    <el-tag v-if="endpoint.id === state.config.activeRelayId" size="small" type="success">当前</el-tag>
+                    <el-tag v-else-if="endpoint.enabled" size="small">启用</el-tag>
+                    <el-tag v-else size="small" type="info">停用</el-tag>
+                  </div>
+                  <span class="relay-list-item-url">{{ endpoint.baseUrl || '未填写 Base URL' }}</span>
+                  <span class="relay-list-item-model">{{ endpoint.model || '未配置模型' }}</span>
+                </button>
+              </div>
+            </aside>
+
+            <section class="relay-settings" v-if="selectedRelay">
+              <div class="section-head compact">
+                <div>
+                  <h2>{{ selectedRelay.name || '未命名中转站' }}</h2>
+                  <p>编辑左侧选中的中转站设置，点击“设为当前”会切换测试、聊天和测速实际使用的中转站。</p>
+                </div>
+                <div class="section-actions">
+                  <el-button :icon="Connection" @click="useRelayEndpoint(selectedRelay)">设为当前</el-button>
                   <el-button
                     :icon="Delete"
                     :disabled="state.relayEndpoints.length <= 1"
-                    @click="removeRelayEndpoint(endpoint.id)"
+                    @click="removeRelayEndpoint(selectedRelay.id)"
                   />
                 </div>
               </div>
 
               <el-form label-position="top">
+                <div class="relay-settings-head">
+                  <el-switch v-model="selectedRelay.enabled" active-text="启用" inactive-text="停用" />
+                  <el-tag v-if="selectedRelay.id === state.config.activeRelayId" type="success">当前使用</el-tag>
+                  <el-tag v-else type="info">仅编辑</el-tag>
+                </div>
+
                 <div class="relay-form-grid">
                   <el-form-item label="名称">
-                    <el-input v-model="endpoint.name" placeholder="例如：中转站 A" />
+                    <el-input v-model="selectedRelay.name" placeholder="例如：中转站 A" />
                   </el-form-item>
                   <el-form-item label="模型">
                     <div class="model-picker">
                       <el-select
-                        v-model="endpoint.model"
+                        v-model="selectedRelay.model"
                         allow-create
                         filterable
                         default-first-option
                         placeholder="先获取模型，或手动输入"
                       >
                         <el-option
-                          v-for="model in endpoint.models"
+                          v-for="model in selectedRelay.models"
                           :key="model"
                           :label="model"
                           :value="model"
@@ -767,8 +923,8 @@ function resetAll() {
                       </el-select>
                       <el-button
                         :icon="Refresh"
-                        :loading="fetchingRelayModels[endpoint.id]"
-                        @click="fetchRelayModels(endpoint)"
+                        :loading="fetchingRelayModels[selectedRelay.id]"
+                        @click="fetchRelayModels(selectedRelay)"
                       >
                         获取模型
                       </el-button>
@@ -777,12 +933,12 @@ function resetAll() {
                 </div>
 
                 <el-form-item label="API Base URL">
-                  <el-input v-model="endpoint.baseUrl" placeholder="https://example.com/v1" />
+                  <el-input v-model="selectedRelay.baseUrl" placeholder="https://example.com/v1" />
                 </el-form-item>
 
                 <el-form-item label="API Key">
                   <el-input
-                    v-model="endpoint.apiKey"
+                    v-model="selectedRelay.apiKey"
                     type="password"
                     placeholder="sk-..."
                     show-password
@@ -790,20 +946,21 @@ function resetAll() {
                 </el-form-item>
 
                 <el-form-item label="备注">
-                  <el-input v-model="endpoint.note" placeholder="套餐、来源、限制等" />
+                  <el-input v-model="selectedRelay.note" placeholder="套餐、来源、限制等" />
                 </el-form-item>
 
                 <div class="relay-meta">
-                  <el-tag v-if="endpoint.models.length > 0" type="success">{{ endpoint.models.length }} 个模型</el-tag>
+                  <el-tag v-if="selectedRelay.models.length > 0" type="success">{{ selectedRelay.models.length }} 个模型</el-tag>
                   <el-tag v-else type="info">未获取模型</el-tag>
-                  <span v-if="endpoint.modelsFetchedAt">
-                    {{ new Date(endpoint.modelsFetchedAt).toLocaleString() }}
+                  <span v-if="selectedRelay.modelsFetchedAt">
+                    {{ new Date(selectedRelay.modelsFetchedAt).toLocaleString() }}
                   </span>
                 </div>
               </el-form>
-            </div>
+            </section>
           </div>
         </section>
+
 
         <section v-show="activeTab === 'benchmark'" class="panel benchmark-panel">
           <div class="section-head">
@@ -841,6 +998,16 @@ function resetAll() {
                     :min="3000"
                     :max="120000"
                     :step="1000"
+                    controls-position="right"
+                  />
+                </el-form-item>
+                <el-form-item label="每个模型运行次数">
+                  <el-input-number
+                    v-model="benchmarkRunCount"
+                    :min="1"
+                    :max="20"
+                    :step="1"
+                    :disabled="benchmarkMode === 'connectivity'"
                     controls-position="right"
                   />
                 </el-form-item>
@@ -896,11 +1063,19 @@ function resetAll() {
               <template #default="{ row }">{{ row.modelsMs ? `${row.modelsMs}ms` : '-' }}</template>
             </el-table-column>
             <el-table-column prop="statusCode" label="HTTP" width="90" />
-            <el-table-column prop="chatMs" label="聊天" width="110">
-              <template #default="{ row }">{{ row.chatMs ? `${row.chatMs}ms` : '-' }}</template>
+            <el-table-column prop="successCount" label="次数" width="90">
+              <template #default="{ row }">
+                {{ row.runCount ? `${row.successCount ?? 0}/${row.runCount}` : '-' }}
+              </template>
             </el-table-column>
-            <el-table-column prop="totalMs" label="总耗时" width="120" sortable>
-              <template #default="{ row }">{{ row.totalMs ? `${row.totalMs}ms` : '-' }}</template>
+            <el-table-column prop="minMs" label="最小" width="100" sortable>
+              <template #default="{ row }">{{ row.minMs ? `${row.minMs}ms` : '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="avgMs" label="平均" width="100" sortable>
+              <template #default="{ row }">{{ row.avgMs ? `${row.avgMs}ms` : '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="maxMs" label="最大" width="100" sortable>
+              <template #default="{ row }">{{ row.maxMs ? `${row.maxMs}ms` : '-' }}</template>
             </el-table-column>
             <el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip />
           </el-table>
