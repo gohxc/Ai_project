@@ -7,6 +7,7 @@ import {
   DocumentCopy,
   FolderChecked,
   Monitor,
+  Picture,
   Plus,
   Promotion,
   Refresh,
@@ -17,11 +18,14 @@ import { ElMessage } from 'element-plus'
 import type { AppState, ChatMessage, RelayBenchmarkResult, RelayEndpoint, RequestHistoryItem } from './lib/types'
 import { addHistory, clearState, createId, loadState, saveState } from './lib/storage'
 import {
+  buildImageGenerationBody,
   buildChatBody,
   buildResponsesBody,
   createChatCompletion,
+  createImageGeneration,
   createResponse,
   extractAssistantText,
+  extractGeneratedImages,
   extractResponseText,
   listModels,
   streamResponse,
@@ -54,6 +58,9 @@ const benchmarkTimeoutMs = ref(30_000)
 const benchmarkRunCount = ref(5)
 const fetchingRelayModels = ref<Record<string, boolean>>({})
 const selectedRelayId = ref(state.config.activeRelayId || state.relayEndpoints[0]?.id || '')
+const generatingImages = ref(false)
+const imageResult = ref<unknown>(null)
+const imageItems = ref<Array<{ url: string; revisedPrompt: string }>>([])
 
 watch(
   state,
@@ -115,6 +122,22 @@ const activeCompletionRequestUrl = computed(() => {
   return `${baseUrl}${activeCompletionEndpoint.value}`
 })
 
+const imageApiConfig = computed(() => ({
+  baseUrl: state.imageConfig.baseUrl,
+  apiKey: state.imageConfig.apiKey,
+  requestTransport: state.config.requestTransport,
+}))
+
+const imageGenerationRequestUrl = computed(() => {
+  const baseUrl = state.imageConfig.baseUrl.replace(/\/+$/, '')
+  if (state.config.requestTransport === 'local_proxy') {
+    const params = new URLSearchParams({ baseUrl })
+    return `/api/openai-proxy/images/generations?${params.toString()}`
+  }
+
+  return `${baseUrl}/images/generations`
+})
+
 const testerMessage = computed<ChatMessage>(() => ({
   id: 'tester_preview',
   role: 'user',
@@ -130,9 +153,11 @@ const previewRequestBody = computed(() =>
 
 const testerRequestBody = computed(() =>
   state.config.apiMode === 'responses'
-    ? buildResponsesBody(activeApiConfig.value, [testerMessage.value], state.config.stream)
-    : buildChatBody(activeApiConfig.value, [testerMessage.value], state.config.stream),
+      ? buildResponsesBody(activeApiConfig.value, [testerMessage.value], state.config.stream)
+      : buildChatBody(activeApiConfig.value, [testerMessage.value], state.config.stream),
 )
+
+const imageRequestBody = computed(() => buildImageGenerationBody(state.imageConfig))
 
 const sortedBenchmarkResults = computed(() =>
   [...benchmarkResults.value].sort((a, b) => {
@@ -205,6 +230,31 @@ function validateConfig() {
   return true
 }
 
+function validateImageConfig() {
+  if (!state.imageConfig.baseUrl.trim()) {
+    ElMessage.error('请填写图片生成 API Base URL')
+    activeTab.value = 'images'
+    return false
+  }
+
+  if (!state.imageConfig.apiKey.trim()) {
+    ElMessage.error('请填写图片生成 API Key')
+    activeTab.value = 'images'
+    return false
+  }
+
+  if (!state.imageConfig.model.trim()) {
+    ElMessage.error('请填写图片模型名称')
+    return false
+  }
+
+  if (!state.imageConfig.prompt.trim()) {
+    ElMessage.error('请填写图片提示词')
+    return false
+  }
+
+  return true
+}
 function benchmarkSourceEndpoints() {
   return state.relayEndpoints.filter((endpoint) => endpoint.enabled && endpoint.baseUrl.trim())
 }
@@ -558,6 +608,34 @@ async function testChat() {
   testingChat.value = false
 }
 
+async function generateImage() {
+  if (!validateImageConfig()) return
+
+  generatingImages.value = true
+  imageResult.value = null
+  imageItems.value = []
+
+  const result = await createImageGeneration(imageApiConfig.value, state.imageConfig)
+  imageResult.value = result.data ?? result.error
+  imageItems.value = result.ok ? extractGeneratedImages(result.data, state.imageConfig.outputFormat) : []
+  lastRequestBody.value = result.requestBody
+
+  recordHistory({
+    type: 'image',
+    endpoint: '/images/generations',
+    model: state.imageConfig.model,
+    status: result.ok ? 'success' : 'error',
+    statusCode: result.statusCode,
+    durationMs: result.durationMs,
+    requestBody: result.requestBody,
+    responseBody: result.data,
+    error: result.error,
+  })
+
+  ElMessage[result.ok ? 'success' : 'error'](result.ok ? '图片生成成功' : '图片生成失败')
+  generatingImages.value = false
+}
+
 async function sendMessage() {
   if (!validateConfig()) return
 
@@ -650,10 +728,13 @@ function resetAll() {
   clearState()
   const fresh = loadState()
   state.config = fresh.config
+  state.imageConfig = fresh.imageConfig
   state.messages = fresh.messages
   state.history = fresh.history
   modelsResult.value = null
   chatTestResult.value = null
+  imageResult.value = null
+  imageItems.value = []
   lastRequestBody.value = null
   benchmarkResults.value = []
   ElMessage.success('本地数据已重置')
@@ -688,13 +769,17 @@ function resetAll() {
           <el-icon><Stopwatch /></el-icon>
           <span>中转测速</span>
         </el-menu-item>
-        <el-menu-item index="chat">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>聊天测试</span>
-        </el-menu-item>
-        <el-menu-item index="history">
-          <el-icon><FolderChecked /></el-icon>
-          <span>请求历史</span>
+          <el-menu-item index="chat">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>聊天测试</span>
+          </el-menu-item>
+          <el-menu-item index="images">
+            <el-icon><Picture /></el-icon>
+            <span>图片生成</span>
+          </el-menu-item>
+          <el-menu-item index="history">
+            <el-icon><FolderChecked /></el-icon>
+            <span>请求历史</span>
         </el-menu-item>
       </el-menu>
 
@@ -1130,7 +1215,124 @@ function resetAll() {
           </div>
         </section>
 
-        <section v-show="activeTab === 'history'" class="panel">
+                        <section v-show="activeTab === 'images'" class="panel image-panel">
+          <div class="section-head">
+            <div>
+              <h2>图片生成</h2>
+              <p>图片页使用独立的 Base URL 和 API Key，请求 `POST /images/generations`。</p>
+            </div>
+            <div class="section-actions">
+              <el-tag type="info">{{ state.imageConfig.baseUrl || '未填写图片地址' }}</el-tag>
+              <el-tag :type="state.config.requestTransport === 'local_proxy' ? 'warning' : 'info'">
+                {{ requestTransportLabel }}
+              </el-tag>
+              <el-button type="primary" :icon="Picture" :loading="generatingImages" @click="generateImage">
+                生成图片
+              </el-button>
+            </div>
+          </div>
+
+          <div class="image-layout">
+            <div class="image-form-wrap">
+              <el-form label-position="top">
+                <el-form-item label="图片 API Base URL">
+                  <el-input v-model="state.imageConfig.baseUrl" placeholder="https://example.com/v1" />
+                </el-form-item>
+
+                <el-form-item label="图片 API Key">
+                  <el-input
+                    v-model="state.imageConfig.apiKey"
+                    type="password"
+                    placeholder="sk-..."
+                    show-password
+                  />
+                </el-form-item>
+
+                <div class="relay-form-grid">
+                  <el-form-item label="图片模型">
+                    <el-input v-model="state.imageConfig.model" placeholder="gpt-image-2" />
+                  </el-form-item>
+                  <el-form-item label="生成数量">
+                    <el-input-number v-model="state.imageConfig.imageCount" :min="1" :max="4" controls-position="right" />
+                  </el-form-item>
+                </div>
+
+                <el-form-item label="提示词">
+                  <el-input v-model="state.imageConfig.prompt" type="textarea" :rows="5" placeholder="描述你想生成的图片内容" />
+                </el-form-item>
+
+                <div class="relay-form-grid">
+                  <el-form-item label="尺寸">
+                    <el-select v-model="state.imageConfig.size">
+                      <el-option label="1024x1024" value="1024x1024" />
+                      <el-option label="1536x1024" value="1536x1024" />
+                      <el-option label="1024x1536" value="1024x1536" />
+                      <el-option label="auto" value="auto" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="质量">
+                    <el-select v-model="state.imageConfig.quality">
+                      <el-option label="high" value="high" />
+                      <el-option label="medium" value="medium" />
+                      <el-option label="low" value="low" />
+                      <el-option label="auto" value="auto" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="背景">
+                    <el-select v-model="state.imageConfig.background">
+                      <el-option label="auto" value="auto" />
+                      <el-option label="transparent" value="transparent" />
+                      <el-option label="opaque" value="opaque" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="输出格式">
+                    <el-select v-model="state.imageConfig.outputFormat">
+                      <el-option label="png" value="png" />
+                      <el-option label="jpeg" value="jpeg" />
+                      <el-option label="webp" value="webp" />
+                    </el-select>
+                  </el-form-item>
+                </div>
+
+                <p class="field-hint">
+                  图片页不使用“当前会话设置”里的聊天模型；它只使用这里单独填写的地址和 Key。
+                </p>
+              </el-form>
+            </div>
+
+            <div class="image-debug-panels">
+              <div class="debug-box">
+                <div class="debug-title">
+                  <strong>/images/generations 请求预览</strong>
+                  <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(imageRequestBody))">复制</el-button>
+                </div>
+                <div class="request-url">{{ imageGenerationRequestUrl }}</div>
+                <pre>{{ prettyJson(imageRequestBody) }}</pre>
+              </div>
+
+              <div class="debug-box">
+                <div class="debug-title">
+                  <strong>原始响应</strong>
+                  <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(imageResult))">复制</el-button>
+                </div>
+                <pre>{{ prettyJson(imageResult) || '暂无生成结果' }}</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="image-gallery">
+            <el-empty v-if="imageItems.length === 0" description="暂无图片结果" />
+            <article v-for="(item, index) in imageItems" :key="item.url + index" class="image-card">
+              <img :src="item.url" :alt="`generated-${index + 1}`" class="generated-image" />
+              <div class="image-card-body">
+                <strong>图片 {{ index + 1 }}</strong>
+                <p v-if="item.revisedPrompt">{{ item.revisedPrompt }}</p>
+                <el-button link :icon="DocumentCopy" @click="copyText(item.url)">复制图片地址</el-button>
+              </div>
+            </article>
+          </div>
+        </section>
+<section v-show="activeTab === 'history'" class="panel">
           <div class="section-head">
             <div>
               <h2>请求历史</h2>
@@ -1142,7 +1344,7 @@ function resetAll() {
           <el-table :data="state.history" height="590" empty-text="暂无请求历史">
             <el-table-column prop="type" label="类型" width="110">
               <template #default="{ row }">
-                <el-tag :type="row.type === 'models' ? 'info' : 'success'">{{ row.type }}</el-tag>
+                <el-tag :type="row.type === 'models' ? 'info' : row.type === 'image' ? 'warning' : 'success'">{{ row.type }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="endpoint" label="接口" min-width="170" />

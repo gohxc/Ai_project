@@ -15,6 +15,17 @@ export const defaultState: AppState = {
     temperature: 0.7,
     systemPrompt: '你是一个简洁、准确的助手。',
   },
+  imageConfig: {
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    model: 'gpt-image-2',
+    prompt: '一只坐在霓虹雨夜街头的柴犬，电影感，细节丰富',
+    size: '1024x1024',
+    quality: 'high',
+    background: 'auto',
+    outputFormat: 'png',
+    imageCount: 1,
+  },
   messages: [],
   history: [],
   relayEndpoints: [
@@ -45,6 +56,15 @@ function normalizeRelayEndpoint(endpoint: Partial<AppState['relayEndpoints'][num
   }
 }
 
+function normalizeImageConfig(imageConfig: Partial<AppState['imageConfig']> | undefined) {
+  return {
+    ...defaultState.imageConfig,
+    ...imageConfig,
+    baseUrl: imageConfig?.baseUrl || defaultState.imageConfig.baseUrl,
+    apiKey: imageConfig?.apiKey || defaultState.imageConfig.apiKey,
+  }
+}
+
 export function createId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
@@ -59,6 +79,7 @@ export function loadState(): AppState {
       ? parsed.relayEndpoints.map((endpoint) => normalizeRelayEndpoint(endpoint))
       : structuredClone(defaultState.relayEndpoints)
     const config = { ...defaultState.config, ...parsed.config }
+    const imageConfig = normalizeImageConfig(parsed.imageConfig)
 
     if (!parsed.config?.activeRelayId && parsed.config?.baseUrl) {
       const legacyRelay = normalizeRelayEndpoint({
@@ -86,6 +107,7 @@ export function loadState(): AppState {
 
     return {
       config,
+      imageConfig,
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
       history: Array.isArray(parsed.history) ? parsed.history : [],
       relayEndpoints,

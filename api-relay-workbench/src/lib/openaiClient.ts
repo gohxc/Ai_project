@@ -1,4 +1,4 @@
-import type { ApiConfig, ChatMessage } from './types'
+import type { ApiConfig, ChatMessage, ImageGenerationConfig } from './types'
 
 export interface ApiResult<T = unknown> {
   ok: boolean
@@ -25,11 +25,22 @@ export interface ResponseStreamEvent {
   delta?: string
 }
 
+export interface GeneratedImagePayloadItem {
+  url?: string
+  b64_json?: string
+  revised_prompt?: string
+}
+
+export interface ImageGenerationResponse {
+  created?: number
+  data?: GeneratedImagePayloadItem[]
+}
+
 function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, '')
 }
 
-function buildRequestUrl(config: ApiConfig, path: string) {
+function buildRequestUrl(config: Pick<ApiConfig, 'baseUrl' | 'requestTransport'>, path: string) {
   if (config.requestTransport === 'local_proxy') {
     const params = new URLSearchParams({ baseUrl: normalizeBaseUrl(config.baseUrl) })
     return `/api/openai-proxy${path}?${params.toString()}`
@@ -138,6 +149,18 @@ export function buildResponsesBody(config: ApiConfig, messages: ChatMessage[], s
   }
 }
 
+export function buildImageGenerationBody(config: ImageGenerationConfig) {
+  return {
+    model: config.model,
+    prompt: config.prompt,
+    size: config.size,
+    quality: config.quality,
+    background: config.background,
+    output_format: config.outputFormat,
+    n: config.imageCount,
+  }
+}
+
 export async function createChatCompletion(
   config: ApiConfig,
   messages: ChatMessage[],
@@ -179,6 +202,41 @@ export async function createResponse(config: ApiConfig, messages: ChatMessage[],
 
   try {
     const response = await fetch(buildRequestUrl(config, '/responses'), {
+      method: 'POST',
+      headers: headers(config.apiKey),
+      body: JSON.stringify(requestBody),
+      signal: createSignal(options.timeoutMs),
+    })
+    const data = await readJsonOrText(response)
+
+    return {
+      ok: response.ok,
+      statusCode: response.status,
+      durationMs: Math.round(performance.now() - startedAt),
+      data,
+      error: response.ok ? undefined : stringifyError(data),
+      requestBody,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      durationMs: Math.round(performance.now() - startedAt),
+      error: error instanceof Error ? error.message : String(error),
+      requestBody,
+    }
+  }
+}
+
+export async function createImageGeneration(
+  config: Pick<ApiConfig, 'baseUrl' | 'apiKey' | 'requestTransport'>,
+  imageConfig: ImageGenerationConfig,
+  options: RequestOptions = {},
+) {
+  const startedAt = performance.now()
+  const requestBody = buildImageGenerationBody(imageConfig)
+
+  try {
+    const response = await fetch(buildRequestUrl(config, '/images/generations'), {
       method: 'POST',
       headers: headers(config.apiKey),
       body: JSON.stringify(requestBody),
@@ -386,6 +444,40 @@ export function extractResponseText(data: unknown) {
       })
     })
     .join('')
+}
+
+function imageMimeType(outputFormat: string) {
+  switch (outputFormat) {
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'webp':
+      return 'image/webp'
+    default:
+      return 'image/png'
+  }
+}
+
+export function extractGeneratedImages(data: unknown, outputFormat: string) {
+  if (!data || typeof data !== 'object') return []
+
+  const items = (data as ImageGenerationResponse).data
+  if (!Array.isArray(items)) return []
+
+  const mimeType = imageMimeType(outputFormat)
+  return items
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const image = item as GeneratedImagePayloadItem
+      return {
+        url: typeof image.url === 'string'
+          ? image.url
+          : typeof image.b64_json === 'string'
+            ? `data:${mimeType};base64,${image.b64_json}`
+            : '',
+        revisedPrompt: typeof image.revised_prompt === 'string' ? image.revised_prompt : '',
+      }
+    })
+    .filter((item): item is { url: string; revisedPrompt: string } => Boolean(item?.url))
 }
 
 function stringifyError(data: unknown) {

@@ -270,3 +270,60 @@ test('chat request excludes pending assistant placeholder message', async ({ pag
     await relay.close()
   }
 })
+
+ test('image generation uses its own base url and api key', async ({ page }) => {
+  let receivedBody: unknown
+  let receivedAuthorization = ''
+  const relay = await withMockRelay((req, res) => {
+    if (req.url === '/v1/images/generations' && req.method === 'POST') {
+      receivedAuthorization = String(req.headers.authorization ?? '')
+      const chunks: Buffer[] = []
+      req.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+      req.on('end', () => {
+        receivedBody = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(
+          JSON.stringify({
+            data: [
+              {
+                b64_json: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8cK0AAAAASUVORK5CYII=',
+                revised_prompt: '一只坐在霓虹雨夜街头的柴犬',
+              },
+            ],
+          }),
+        )
+      })
+      return
+    }
+
+    res.writeHead(404, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ error: { message: 'unexpected request' } }))
+  })
+
+  try {
+    await page.goto('/')
+    await page.getByRole('menuitem', { name: 'API 配置' }).click()
+    await page.locator('.config-form').getByText('本地代理', { exact: true }).click()
+
+    await page.getByRole('menuitem', { name: '图片生成' }).click()
+    await page.getByLabel('图片 API Base URL').fill(relay.baseUrl)
+    await page.getByLabel('图片 API Key').fill('sk-image-only')
+    await page.getByLabel('图片模型').fill('gpt-image-2')
+    await page.getByPlaceholder('描述你想生成的图片内容').fill('一只戴宇航员头盔的柯基')
+
+    await expect(page.locator('.image-debug-panels')).toContainText(encodeURIComponent(relay.baseUrl))
+    await page.getByRole('button', { name: '生成图片' }).click()
+
+    await expect(page.locator('.image-gallery img')).toHaveCount(1)
+    await expect(page.locator('.image-card-body').getByText('一只坐在霓虹雨夜街头的柴犬')).toBeVisible()
+    await expect.poll(() => receivedAuthorization).toBe('Bearer sk-image-only')
+    await expect.poll(() => receivedBody).toMatchObject({
+      model: 'gpt-image-2',
+      prompt: '一只戴宇航员头盔的柯基',
+      output_format: 'png',
+      n: 1,
+    })
+  } finally {
+    await relay.close()
+  }
+})

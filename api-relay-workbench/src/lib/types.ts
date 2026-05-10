@@ -2,6 +2,18 @@ export type StorageMode = 'localStorage'
 export type ApiMode = 'chat_completions' | 'responses'
 export type RequestTransport = 'direct' | 'local_proxy'
 
+export interface ImageGenerationConfig {
+  baseUrl: string
+  apiKey: string
+  model: string
+  prompt: string
+  size: string
+  quality: string
+  background: string
+  outputFormat: string
+  imageCount: number
+}
+
 export interface ApiConfig {
   baseUrl: string
   apiKey: string
@@ -23,7 +35,7 @@ export interface ChatMessage {
 
 export interface RequestHistoryItem {
   id: string
-  type: 'models' | 'chat' | 'responses'
+  type: 'models' | 'chat' | 'responses' | 'image'
   endpoint: string
   model?: string
   status: 'success' | 'error'
@@ -68,6 +80,7 @@ export interface RelayBenchmarkResult {
 
 export interface AppState {
   config: ApiConfig
+  imageConfig: ImageGenerationConfig
   messages: ChatMessage[]
   history: RequestHistoryItem[]
   relayEndpoints: RelayEndpoint[]

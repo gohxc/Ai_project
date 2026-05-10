@@ -3,7 +3,7 @@ import type { Plugin, ViteDevServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 const proxyPrefix = '/api/openai-proxy'
-const allowedProxyPaths = ['/models', '/chat/completions', '/responses']
+const allowedProxyPaths = ['/models', '/chat/completions', '/responses', '/images/generations']
 
 function openAiProxyPlugin(): Plugin {
   return {
