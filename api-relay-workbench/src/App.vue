@@ -3,18 +3,21 @@ import { computed, reactive, ref, watch } from 'vue'
 import {
   ChatDotRound,
   Connection,
-  Delete,
-  DocumentCopy,
   FolderChecked,
   Monitor,
   Picture,
-  Plus,
-  Promotion,
   Refresh,
   Setting,
   Stopwatch,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import ApiTesting from './components/ApiTesting.vue'
+import ChatTesting from './components/ChatTesting.vue'
+import ImageGeneration from './components/ImageGeneration.vue'
+import RelayBenchmark from './components/RelayBenchmark.vue'
+import RelayManagement from './components/RelayManagement.vue'
+import RequestHistory from './components/RequestHistory.vue'
+import SessionSettings from './components/SessionSettings.vue'
 import type { AppState, ChatMessage, RelayBenchmarkResult, RelayEndpoint, RequestHistoryItem } from './lib/types'
 import { addHistory, clearState, createId, loadState, saveState } from './lib/storage'
 import {
@@ -769,23 +772,23 @@ function resetAll() {
           <el-icon><Stopwatch /></el-icon>
           <span>中转测速</span>
         </el-menu-item>
-          <el-menu-item index="chat">
-            <el-icon><ChatDotRound /></el-icon>
-            <span>聊天测试</span>
-          </el-menu-item>
-          <el-menu-item index="images">
-            <el-icon><Picture /></el-icon>
-            <span>图片生成</span>
-          </el-menu-item>
-          <el-menu-item index="history">
-            <el-icon><FolderChecked /></el-icon>
-            <span>请求历史</span>
+        <el-menu-item index="chat">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>聊天测试</span>
+        </el-menu-item>
+        <el-menu-item index="images">
+          <el-icon><Picture /></el-icon>
+          <span>图片生成</span>
+        </el-menu-item>
+        <el-menu-item index="history">
+          <el-icon><FolderChecked /></el-icon>
+          <span>请求历史</span>
         </el-menu-item>
       </el-menu>
 
       <div class="storage-note">
         <strong>数据保存</strong>
-        <span>当前版本保存到本机浏览器 localStorage。API Key 不会上传到额外服务器。</span>
+        <span>当前版本保存到本机浏览器 localStorage，API Key 不会上传到额外服务器。</span>
       </div>
     </el-aside>
 
@@ -810,559 +813,91 @@ function resetAll() {
       </el-header>
 
       <el-main class="content">
-        <section v-show="activeTab === 'config'" class="panel">
-          <div class="section-head">
-            <div>
-              <h2>当前会话设置</h2>
-              <p>地址、Key 和模型在中转管理维护；这里选择当前中转站和本次会话参数。</p>
-            </div>
-          </div>
+        <SessionSettings
+          v-if="activeTab === 'config'"
+          v-model:config="state.config"
+          :relay-endpoints="state.relayEndpoints"
+          :active-api-config="activeApiConfig"
+        />
 
-          <el-form label-position="top" class="config-form">
-            <el-form-item label="当前中转站">
-              <el-select v-model="state.config.activeRelayId" placeholder="请选择中转站" filterable>
-                <el-option
-                  v-for="endpoint in state.relayEndpoints"
-                  :key="endpoint.id"
-                  :label="`${endpoint.name} · ${endpoint.model || '未配置模型'}`"
-                  :value="endpoint.id"
-                />
-              </el-select>
-            </el-form-item>
+        <ApiTesting
+          v-if="activeTab === 'tester'"
+          v-model:config="state.config"
+          :active-completion-endpoint="activeCompletionEndpoint"
+          :request-transport-label="requestTransportLabel"
+          :active-completion-request-url="activeCompletionRequestUrl"
+          :tester-request-body="testerRequestBody"
+          :models-result="modelsResult"
+          :chat-test-result="chatTestResult"
+          :testing-models="testingModels"
+          :testing-chat="testingChat"
+          :test-models="testModels"
+          :test-chat="testChat"
+          :copy-curl="copyCurl"
+          :copy-text="copyText"
+          :pretty-json="prettyJson"
+        />
 
-            <el-form-item label="接口模式">
-              <el-radio-group v-model="state.config.apiMode">
-                <el-radio-button label="chat_completions">Chat Completions</el-radio-button>
-                <el-radio-button label="responses">Responses API</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
+        <RelayManagement
+          v-if="activeTab === 'relays'"
+          v-model:selected-relay-id="selectedRelayId"
+          :relay-endpoints="state.relayEndpoints"
+          :selected-relay="selectedRelay"
+          :active-relay-id="state.config.activeRelayId"
+          :fetching-relay-models="fetchingRelayModels"
+          :on-add-relay="addRelayEndpoint"
+          :on-remove-relay="removeRelayEndpoint"
+          :on-use-relay="useRelayEndpoint"
+          :on-fetch-relay-models="fetchRelayModels"
+        />
 
-            <el-form-item label="请求通道">
-              <el-segmented
-                v-model="state.config.requestTransport"
-                :options="[
-                  { label: '浏览器直连', value: 'direct' },
-                  { label: '本地代理', value: 'local_proxy' },
-                ]"
-              />
-              <p class="field-hint">
-                本地代理通过 Vite dev server 转发请求，可避开部分中转站拒绝浏览器 OPTIONS 预检的问题。
-              </p>
-            </el-form-item>
+        <RelayBenchmark
+          v-if="activeTab === 'benchmark'"
+          v-model:benchmark-mode="benchmarkMode"
+          v-model:benchmark-prompt="benchmarkPrompt"
+          v-model:benchmark-timeout-ms="benchmarkTimeoutMs"
+          v-model:benchmark-run-count="benchmarkRunCount"
+          :relay-endpoints="state.relayEndpoints"
+          :sorted-benchmark-results="sortedBenchmarkResults"
+          :benchmark-running="benchmarkRunning"
+          :on-manage-relays="() => (activeTab = 'relays')"
+          :on-run-benchmark="runBenchmark"
+        />
 
-            <div class="form-grid">
-              <el-form-item label="当前 Base URL">
-                <el-input :model-value="activeApiConfig.baseUrl" readonly placeholder="未配置" />
-              </el-form-item>
-              <el-form-item label="当前模型">
-                <el-input :model-value="activeApiConfig.model" readonly placeholder="未配置" />
-              </el-form-item>
-            </div>
+        <ChatTesting
+          v-if="activeTab === 'chat'"
+          v-model:user-input="userInput"
+          :config="state.config"
+          :visible-messages="visibleMessages"
+          :sending-chat="sendingChat"
+          :last-request-body="lastRequestBody"
+          :preview-request-body="previewRequestBody"
+          :on-clear-messages="clearMessages"
+          :on-send-message="sendMessage"
+          :on-copy-text="copyText"
+          :pretty-json="prettyJson"
+        />
 
-            <el-form-item label="Temperature">
-              <el-slider v-model="state.config.temperature" :min="0" :max="2" :step="0.1" show-input />
-            </el-form-item>
+        <ImageGeneration
+          v-if="activeTab === 'images'"
+          v-model:image-config="state.imageConfig"
+          :request-transport="state.config.requestTransport"
+          :request-transport-label="requestTransportLabel"
+          :generating-images="generatingImages"
+          :image-result="imageResult"
+          :image-items="imageItems"
+          :image-request-body="imageRequestBody"
+          :image-generation-request-url="imageGenerationRequestUrl"
+          :on-generate-image="generateImage"
+          :on-copy-text="copyText"
+          :pretty-json="prettyJson"
+        />
 
-            <el-form-item label="系统提示词">
-              <el-input v-model="state.config.systemPrompt" type="textarea" :rows="4" />
-            </el-form-item>
-          </el-form>
-        </section>
-
-        <section v-show="activeTab === 'tester'" class="panel tester-grid">
-          <div class="test-actions">
-            <div class="section-head compact">
-              <div>
-                <h2>接口测试</h2>
-                <p>先测模型列表，再按当前接口模式测试生成接口。</p>
-              </div>
-            </div>
-
-            <el-radio-group v-model="state.config.apiMode" class="tester-mode">
-              <el-radio-button label="chat_completions">Chat Completions</el-radio-button>
-              <el-radio-button label="responses">Responses API</el-radio-button>
-            </el-radio-group>
-
-            <el-tag type="info" class="endpoint-tag">{{ activeCompletionEndpoint }}</el-tag>
-            <el-tag
-              :type="state.config.requestTransport === 'local_proxy' ? 'warning' : 'info'"
-              class="endpoint-tag"
-            >
-              {{ requestTransportLabel }}
-            </el-tag>
-            <p v-if="state.config.requestTransport === 'local_proxy'" class="proxy-note">
-              代理只在本地开发服务 http://127.0.0.1:5174 下可用，请求会从本机转发到当前中转站。
-            </p>
-
-            <el-button type="primary" :icon="Connection" :loading="testingModels" @click="testModels">
-              测试 /models
-            </el-button>
-            <el-button type="success" :icon="Promotion" :loading="testingChat" @click="testChat">
-              测试 {{ activeCompletionEndpoint }}
-            </el-button>
-            <el-button :icon="DocumentCopy" @click="copyCurl">复制 curl</el-button>
-          </div>
-
-          <div class="debug-panels">
-            <div class="debug-box">
-              <div class="debug-title">
-                <strong>{{ activeCompletionEndpoint }} 请求预览</strong>
-                <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(testerRequestBody))">复制</el-button>
-              </div>
-              <div class="request-url">{{ activeCompletionRequestUrl }}</div>
-              <pre>{{ prettyJson(testerRequestBody) }}</pre>
-            </div>
-
-            <div class="debug-box">
-              <div class="debug-title">
-                <strong>/models 响应</strong>
-                <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(modelsResult))">复制</el-button>
-              </div>
-              <pre>{{ prettyJson(modelsResult) || '暂无测试结果' }}</pre>
-            </div>
-
-            <div class="debug-box wide">
-              <div class="debug-title">
-                <strong>{{ activeCompletionEndpoint }} 响应</strong>
-                <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(chatTestResult))">复制</el-button>
-              </div>
-              <pre>{{ prettyJson(chatTestResult) || '暂无测试结果' }}</pre>
-            </div>
-          </div>
-        </section>
-
-        <section v-show="activeTab === 'relays'" class="panel relays-panel">
-          <div class="section-head">
-            <div>
-              <h2>中转管理</h2>
-              <p>统一保存每个中转站的地址、Key 和模型；测试、聊天和测速都可以直接复用。</p>
-            </div>
-            <el-button type="primary" :icon="Plus" @click="addRelayEndpoint">添加中转站</el-button>
-          </div>
-
-          <div class="relay-management-layout">
-            <aside class="relay-list-panel">
-              <div class="relay-list" role="list" aria-label="中转站列表">
-                <button
-                  v-for="endpoint in state.relayEndpoints"
-                  :key="endpoint.id"
-                  type="button"
-                  class="relay-list-item"
-                  :class="{ active: endpoint.id === selectedRelay?.id }"
-                  @click="selectedRelayId = endpoint.id"
-                >
-                  <div class="relay-list-item-head">
-                    <strong>{{ endpoint.name }}</strong>
-                    <el-tag v-if="endpoint.id === state.config.activeRelayId" size="small" type="success">当前</el-tag>
-                    <el-tag v-else-if="endpoint.enabled" size="small">启用</el-tag>
-                    <el-tag v-else size="small" type="info">停用</el-tag>
-                  </div>
-                  <span class="relay-list-item-url">{{ endpoint.baseUrl || '未填写 Base URL' }}</span>
-                  <span class="relay-list-item-model">{{ endpoint.model || '未配置模型' }}</span>
-                </button>
-              </div>
-            </aside>
-
-            <section class="relay-settings" v-if="selectedRelay">
-              <div class="section-head compact">
-                <div>
-                  <h2>{{ selectedRelay.name || '未命名中转站' }}</h2>
-                  <p>编辑左侧选中的中转站设置，点击“设为当前”会切换测试、聊天和测速实际使用的中转站。</p>
-                </div>
-                <div class="section-actions">
-                  <el-button :icon="Connection" @click="useRelayEndpoint(selectedRelay)">设为当前</el-button>
-                  <el-button
-                    :icon="Delete"
-                    :disabled="state.relayEndpoints.length <= 1"
-                    @click="removeRelayEndpoint(selectedRelay.id)"
-                  />
-                </div>
-              </div>
-
-              <el-form label-position="top">
-                <div class="relay-settings-head">
-                  <el-switch v-model="selectedRelay.enabled" active-text="启用" inactive-text="停用" />
-                  <el-tag v-if="selectedRelay.id === state.config.activeRelayId" type="success">当前使用</el-tag>
-                  <el-tag v-else type="info">仅编辑</el-tag>
-                </div>
-
-                <div class="relay-form-grid">
-                  <el-form-item label="名称">
-                    <el-input v-model="selectedRelay.name" placeholder="例如：中转站 A" />
-                  </el-form-item>
-                  <el-form-item label="模型">
-                    <div class="model-picker">
-                      <el-select
-                        v-model="selectedRelay.model"
-                        allow-create
-                        filterable
-                        default-first-option
-                        placeholder="先获取模型，或手动输入"
-                      >
-                        <el-option
-                          v-for="model in selectedRelay.models"
-                          :key="model"
-                          :label="model"
-                          :value="model"
-                        />
-                      </el-select>
-                      <el-button
-                        :icon="Refresh"
-                        :loading="fetchingRelayModels[selectedRelay.id]"
-                        @click="fetchRelayModels(selectedRelay)"
-                      >
-                        获取模型
-                      </el-button>
-                    </div>
-                  </el-form-item>
-                </div>
-
-                <el-form-item label="API Base URL">
-                  <el-input v-model="selectedRelay.baseUrl" placeholder="https://example.com/v1" />
-                </el-form-item>
-
-                <el-form-item label="API Key">
-                  <el-input
-                    v-model="selectedRelay.apiKey"
-                    type="password"
-                    placeholder="sk-..."
-                    show-password
-                  />
-                </el-form-item>
-
-                <el-form-item label="备注">
-                  <el-input v-model="selectedRelay.note" placeholder="套餐、来源、限制等" />
-                </el-form-item>
-
-                <div class="relay-meta">
-                  <el-tag v-if="selectedRelay.models.length > 0" type="success">{{ selectedRelay.models.length }} 个模型</el-tag>
-                  <el-tag v-else type="info">未获取模型</el-tag>
-                  <span v-if="selectedRelay.modelsFetchedAt">
-                    {{ new Date(selectedRelay.modelsFetchedAt).toLocaleString() }}
-                  </span>
-                </div>
-              </el-form>
-            </section>
-          </div>
-        </section>
-
-
-        <section v-show="activeTab === 'benchmark'" class="panel benchmark-panel">
-          <div class="section-head">
-            <div>
-              <h2>中转测速</h2>
-              <p>直接使用“中转管理”里已启用的档案；连通性测试不需要 Key，真实速度测试使用档案自己的 Key 和模型。</p>
-            </div>
-            <div class="section-actions">
-              <el-button :icon="Setting" @click="activeTab = 'relays'">管理中转站</el-button>
-              <el-button type="primary" :icon="Stopwatch" :loading="benchmarkRunning" @click="runBenchmark">
-                开始测速
-              </el-button>
-            </div>
-          </div>
-
-          <div class="benchmark-options">
-            <el-form label-position="top">
-              <el-form-item label="测试模式">
-                <el-radio-group v-model="benchmarkMode">
-                  <el-radio-button label="connectivity">连通性测试</el-radio-button>
-                  <el-radio-button label="real">真实速度测试</el-radio-button>
-                </el-radio-group>
-              </el-form-item>
-              <div class="form-grid">
-                <el-form-item label="测速提示词">
-                  <el-input
-                    v-model="benchmarkPrompt"
-                    placeholder="请只回复：pong"
-                    :disabled="benchmarkMode === 'connectivity'"
-                  />
-                </el-form-item>
-                <el-form-item label="单接口超时">
-                  <el-input-number
-                    v-model="benchmarkTimeoutMs"
-                    :min="3000"
-                    :max="120000"
-                    :step="1000"
-                    controls-position="right"
-                  />
-                </el-form-item>
-                <el-form-item label="每个模型运行次数">
-                  <el-input-number
-                    v-model="benchmarkRunCount"
-                    :min="1"
-                    :max="20"
-                    :step="1"
-                    :disabled="benchmarkMode === 'connectivity'"
-                    controls-position="right"
-                  />
-                </el-form-item>
-              </div>
-            </el-form>
-          </div>
-
-          <el-table
-            :data="state.relayEndpoints"
-            class="relay-source-table"
-            empty-text="暂无中转站档案"
-          >
-            <el-table-column prop="enabled" label="启用" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="name" label="中转站" min-width="150" />
-            <el-table-column prop="baseUrl" label="Base URL" min-width="260" show-overflow-tooltip />
-            <el-table-column prop="model" label="模型" min-width="150" />
-            <el-table-column label="Key" width="90">
-              <template #default="{ row }">{{ row.apiKey ? '已保存' : '未填写' }}</template>
-            </el-table-column>
-          </el-table>
-
-          <el-table :data="sortedBenchmarkResults" class="benchmark-table" empty-text="暂无测速结果">
-            <el-table-column label="排名" width="80">
-              <template #default="{ $index }">{{ $index + 1 }}</template>
-            </el-table-column>
-            <el-table-column prop="name" label="中转站" min-width="150" />
-            <el-table-column prop="baseUrl" label="Base URL" min-width="260" show-overflow-tooltip />
-            <el-table-column prop="model" label="模型" min-width="150" />
-            <el-table-column prop="status" label="状态" width="120">
-              <template #default="{ row }">
-                <el-tag
-                  :type="row.status === 'success' ? 'success' : row.status === 'error' ? 'danger' : 'warning'"
-                >
-                  {{
-                    row.status === 'testing'
-                      ? '测试中'
-                      : row.status === 'success'
-                        ? benchmarkMode === 'connectivity'
-                          ? '可连接'
-                          : '成功'
-                        : row.status === 'error'
-                          ? '失败'
-                          : '等待'
-                  }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="modelsMs" label="/models" width="110">
-              <template #default="{ row }">{{ row.modelsMs ? `${row.modelsMs}ms` : '-' }}</template>
-            </el-table-column>
-            <el-table-column prop="statusCode" label="HTTP" width="90" />
-            <el-table-column prop="successCount" label="次数" width="90">
-              <template #default="{ row }">
-                {{ row.runCount ? `${row.successCount ?? 0}/${row.runCount}` : '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="minMs" label="最小" width="100" sortable>
-              <template #default="{ row }">{{ row.minMs ? `${row.minMs}ms` : '-' }}</template>
-            </el-table-column>
-            <el-table-column prop="avgMs" label="平均" width="100" sortable>
-              <template #default="{ row }">{{ row.avgMs ? `${row.avgMs}ms` : '-' }}</template>
-            </el-table-column>
-            <el-table-column prop="maxMs" label="最大" width="100" sortable>
-              <template #default="{ row }">{{ row.maxMs ? `${row.maxMs}ms` : '-' }}</template>
-            </el-table-column>
-            <el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip />
-          </el-table>
-        </section>
-
-        <section v-show="activeTab === 'chat'" class="chat-layout">
-          <div class="chat-panel">
-            <div class="section-head compact">
-              <div>
-                <h2>聊天测试</h2>
-                <p>{{ state.config.stream ? '当前使用流式输出' : '当前使用普通响应' }}</p>
-              </div>
-              <el-button :icon="Delete" @click="clearMessages">清空会话</el-button>
-            </div>
-
-            <div class="messages">
-              <el-empty v-if="visibleMessages.length === 0" description="暂无消息" />
-              <div
-                v-for="message in visibleMessages"
-                :key="message.id"
-                class="message"
-                :class="`message-${message.role}`"
-              >
-                <span>{{ message.role === 'user' ? '用户' : '助手' }}</span>
-                <p>{{ message.content || '...' }}</p>
-              </div>
-            </div>
-
-            <div class="composer">
-              <el-input
-                v-model="userInput"
-                type="textarea"
-                :rows="4"
-                resize="none"
-                placeholder="输入一条消息，Ctrl + Enter 发送"
-                @keydown.ctrl.enter.prevent="sendMessage"
-              />
-              <el-button type="primary" :icon="Promotion" :loading="sendingChat" @click="sendMessage">
-                发送
-              </el-button>
-            </div>
-          </div>
-
-          <div class="debug-box side-debug">
-            <div class="debug-title">
-              <strong>最近请求</strong>
-              <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(lastRequestBody || previewRequestBody))">
-                复制
-              </el-button>
-            </div>
-            <pre>{{ prettyJson(lastRequestBody || previewRequestBody) }}</pre>
-          </div>
-        </section>
-
-                        <section v-show="activeTab === 'images'" class="panel image-panel">
-          <div class="section-head">
-            <div>
-              <h2>图片生成</h2>
-              <p>图片页使用独立的 Base URL 和 API Key，请求 `POST /images/generations`。</p>
-            </div>
-            <div class="section-actions">
-              <el-tag type="info">{{ state.imageConfig.baseUrl || '未填写图片地址' }}</el-tag>
-              <el-tag :type="state.config.requestTransport === 'local_proxy' ? 'warning' : 'info'">
-                {{ requestTransportLabel }}
-              </el-tag>
-              <el-button type="primary" :icon="Picture" :loading="generatingImages" @click="generateImage">
-                生成图片
-              </el-button>
-            </div>
-          </div>
-
-          <div class="image-layout">
-            <div class="image-form-wrap">
-              <el-form label-position="top">
-                <el-form-item label="图片 API Base URL">
-                  <el-input v-model="state.imageConfig.baseUrl" placeholder="https://example.com/v1" />
-                </el-form-item>
-
-                <el-form-item label="图片 API Key">
-                  <el-input
-                    v-model="state.imageConfig.apiKey"
-                    type="password"
-                    placeholder="sk-..."
-                    show-password
-                  />
-                </el-form-item>
-
-                <div class="relay-form-grid">
-                  <el-form-item label="图片模型">
-                    <el-input v-model="state.imageConfig.model" placeholder="gpt-image-2" />
-                  </el-form-item>
-                  <el-form-item label="生成数量">
-                    <el-input-number v-model="state.imageConfig.imageCount" :min="1" :max="4" controls-position="right" />
-                  </el-form-item>
-                </div>
-
-                <el-form-item label="提示词">
-                  <el-input v-model="state.imageConfig.prompt" type="textarea" :rows="5" placeholder="描述你想生成的图片内容" />
-                </el-form-item>
-
-                <div class="relay-form-grid">
-                  <el-form-item label="尺寸">
-                    <el-select v-model="state.imageConfig.size">
-                      <el-option label="1024x1024" value="1024x1024" />
-                      <el-option label="1536x1024" value="1536x1024" />
-                      <el-option label="1024x1536" value="1024x1536" />
-                      <el-option label="auto" value="auto" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item label="质量">
-                    <el-select v-model="state.imageConfig.quality">
-                      <el-option label="high" value="high" />
-                      <el-option label="medium" value="medium" />
-                      <el-option label="low" value="low" />
-                      <el-option label="auto" value="auto" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item label="背景">
-                    <el-select v-model="state.imageConfig.background">
-                      <el-option label="auto" value="auto" />
-                      <el-option label="transparent" value="transparent" />
-                      <el-option label="opaque" value="opaque" />
-                    </el-select>
-                  </el-form-item>
-                  <el-form-item label="输出格式">
-                    <el-select v-model="state.imageConfig.outputFormat">
-                      <el-option label="png" value="png" />
-                      <el-option label="jpeg" value="jpeg" />
-                      <el-option label="webp" value="webp" />
-                    </el-select>
-                  </el-form-item>
-                </div>
-
-                <p class="field-hint">
-                  图片页不使用“当前会话设置”里的聊天模型；它只使用这里单独填写的地址和 Key。
-                </p>
-              </el-form>
-            </div>
-
-            <div class="image-debug-panels">
-              <div class="debug-box">
-                <div class="debug-title">
-                  <strong>/images/generations 请求预览</strong>
-                  <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(imageRequestBody))">复制</el-button>
-                </div>
-                <div class="request-url">{{ imageGenerationRequestUrl }}</div>
-                <pre>{{ prettyJson(imageRequestBody) }}</pre>
-              </div>
-
-              <div class="debug-box">
-                <div class="debug-title">
-                  <strong>原始响应</strong>
-                  <el-button link :icon="DocumentCopy" @click="copyText(prettyJson(imageResult))">复制</el-button>
-                </div>
-                <pre>{{ prettyJson(imageResult) || '暂无生成结果' }}</pre>
-              </div>
-            </div>
-          </div>
-
-          <div class="image-gallery">
-            <el-empty v-if="imageItems.length === 0" description="暂无图片结果" />
-            <article v-for="(item, index) in imageItems" :key="item.url + index" class="image-card">
-              <img :src="item.url" :alt="`generated-${index + 1}`" class="generated-image" />
-              <div class="image-card-body">
-                <strong>图片 {{ index + 1 }}</strong>
-                <p v-if="item.revisedPrompt">{{ item.revisedPrompt }}</p>
-                <el-button link :icon="DocumentCopy" @click="copyText(item.url)">复制图片地址</el-button>
-              </div>
-            </article>
-          </div>
-        </section>
-<section v-show="activeTab === 'history'" class="panel">
-          <div class="section-head">
-            <div>
-              <h2>请求历史</h2>
-              <p>最多保存最近 50 条，只保存在当前浏览器。</p>
-            </div>
-            <el-button :icon="Delete" @click="clearHistory">清空历史</el-button>
-          </div>
-
-          <el-table :data="state.history" height="590" empty-text="暂无请求历史">
-            <el-table-column prop="type" label="类型" width="110">
-              <template #default="{ row }">
-                <el-tag :type="row.type === 'models' ? 'info' : row.type === 'image' ? 'warning' : 'success'">{{ row.type }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="endpoint" label="接口" min-width="170" />
-            <el-table-column prop="model" label="模型" min-width="150" />
-            <el-table-column prop="status" label="状态" width="110">
-              <template #default="{ row }">
-                <el-tag :type="row.status === 'success' ? 'success' : 'danger'">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="statusCode" label="HTTP" width="90" />
-            <el-table-column prop="durationMs" label="耗时" width="100">
-              <template #default="{ row }">{{ row.durationMs }}ms</template>
-            </el-table-column>
-            <el-table-column prop="createdAt" label="时间" min-width="190">
-              <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
-            </el-table-column>
-          </el-table>
-        </section>
+        <RequestHistory
+          v-if="activeTab === 'history'"
+          :history="state.history"
+          :on-clear-history="clearHistory"
+        />
       </el-main>
     </el-container>
   </el-container>
