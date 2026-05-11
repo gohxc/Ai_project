@@ -31,6 +31,18 @@ npx playwright test
 
 Playwright is configured to use the locally installed system Chrome through `channel: 'chrome'`. Do not assume Playwright-managed Chromium is installed.
 
+## File Formatting
+
+Editor defaults are defined in `.editorconfig`:
+
+- UTF-8 charset
+- LF line endings
+- insert final newline
+- space indentation
+- 4-space indent size
+
+Git line-ending normalization is defined in `.gitattributes`: text files use LF by default, while Windows scripts (`*.bat`, `*.cmd`, `*.ps1`) keep CRLF.
+
 ## Core Design
 
 The core product model is:
