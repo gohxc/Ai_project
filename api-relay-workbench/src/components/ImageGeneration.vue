@@ -8,6 +8,7 @@ const props = defineProps<{
   requestTransportLabel: string
   requestTransport: AppState['config']['requestTransport']
   generatingImages: boolean
+  imageGenerationDurationMs: number | null
   imageResult: unknown
   imageItems: Array<{ url: string; revisedPrompt: string }>
   imageRequestBody: unknown
@@ -29,6 +30,10 @@ const props = defineProps<{
         <el-tag type="info">{{ imageConfig.baseUrl || '未填写图片地址' }}</el-tag>
         <el-tag :type="props.requestTransport === 'local_proxy' ? 'warning' : 'info'">
           {{ props.requestTransportLabel }}
+        </el-tag>
+        <el-tag v-if="props.generatingImages" type="warning">生成计时中</el-tag>
+        <el-tag v-else-if="props.imageGenerationDurationMs !== null" type="success">
+          生成耗时 {{ props.imageGenerationDurationMs }}ms
         </el-tag>
         <el-button type="primary" :icon="Picture" :loading="props.generatingImages" @click="props.onGenerateImage">
           生成图片
@@ -119,6 +124,9 @@ const props = defineProps<{
         <div class="debug-box">
           <div class="debug-title">
             <strong>原始响应</strong>
+            <span v-if="props.imageGenerationDurationMs !== null" class="duration-text">
+              {{ props.imageGenerationDurationMs }}ms
+            </span>
             <el-button link :icon="DocumentCopy" @click="props.onCopyText(props.prettyJson(props.imageResult))">复制</el-button>
           </div>
           <pre>{{ props.prettyJson(props.imageResult) || '暂无生成结果' }}</pre>

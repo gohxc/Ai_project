@@ -315,6 +315,7 @@ test('chat request excludes pending assistant placeholder message', async ({ pag
     await page.getByRole('button', { name: '生成图片' }).click()
 
     await expect(page.locator('.image-gallery img')).toHaveCount(1)
+    await expect(page.locator('.image-panel').getByText(/生成耗时 \d+ms/)).toBeVisible()
     await expect(page.locator('.image-card-body').getByText('一只坐在霓虹雨夜街头的柴犬')).toBeVisible()
     await expect.poll(() => receivedAuthorization).toBe('Bearer sk-image-only')
     await expect.poll(() => receivedBody).toMatchObject({

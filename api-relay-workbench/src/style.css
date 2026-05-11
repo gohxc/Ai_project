@@ -407,6 +407,13 @@ textarea {
   font-size: 13px;
 }
 
+.duration-text {
+  margin-left: auto;
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 pre {
   min-height: 216px;
   max-height: 420px;

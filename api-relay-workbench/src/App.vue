@@ -64,6 +64,7 @@ const selectedRelayId = ref(state.config.activeRelayId || state.relayEndpoints[0
 const generatingImages = ref(false)
 const imageResult = ref<unknown>(null)
 const imageItems = ref<Array<{ url: string; revisedPrompt: string }>>([])
+const imageGenerationDurationMs = ref<number | null>(null)
 
 watch(
   state,
@@ -617,10 +618,12 @@ async function generateImage() {
   generatingImages.value = true
   imageResult.value = null
   imageItems.value = []
+  imageGenerationDurationMs.value = null
 
   const result = await createImageGeneration(imageApiConfig.value, state.imageConfig)
   imageResult.value = result.data ?? result.error
   imageItems.value = result.ok ? extractGeneratedImages(result.data, state.imageConfig.outputFormat) : []
+  imageGenerationDurationMs.value = result.durationMs
   lastRequestBody.value = result.requestBody
 
   recordHistory({
@@ -738,6 +741,7 @@ function resetAll() {
   chatTestResult.value = null
   imageResult.value = null
   imageItems.value = []
+  imageGenerationDurationMs.value = null
   lastRequestBody.value = null
   benchmarkResults.value = []
   ElMessage.success('本地数据已重置')
@@ -884,6 +888,7 @@ function resetAll() {
           :request-transport="state.config.requestTransport"
           :request-transport-label="requestTransportLabel"
           :generating-images="generatingImages"
+          :image-generation-duration-ms="imageGenerationDurationMs"
           :image-result="imageResult"
           :image-items="imageItems"
           :image-request-body="imageRequestBody"
