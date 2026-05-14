@@ -94,7 +94,7 @@ def test_init_skips_if_env_already_exists(tmp_path: Path) -> None:
     output, _ = _run_init(tmp_path)
 
     assert env_file.read_text("utf-8") == "existing content"
-    assert "already exists" in output
+    assert "配置已存在" in output
 
 
 def test_init_prints_next_step_hint(tmp_path: Path) -> None:
@@ -288,7 +288,7 @@ def test_launch_claude_exits_when_command_cannot_be_resolved(
     assert exc_info.value.code == 127
     popen.assert_not_called()
     captured = capsys.readouterr()
-    assert "Could not find Claude Code command: claude-missing" in captured.err
+    assert "未找到 Claude Code 命令:claude-missing" in captured.err
     assert "npm install -g @anthropic-ai/claude-code" in captured.err
 
 

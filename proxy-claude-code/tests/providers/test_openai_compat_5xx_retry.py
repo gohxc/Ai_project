@@ -7,6 +7,7 @@ import pytest
 from httpx import Request, Response
 
 from config.nim import NimSettings
+from core.anthropic.stream_contracts import parse_sse_text, text_content
 from providers.base import ProviderConfig
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.rate_limit import GlobalRateLimiter
@@ -70,10 +71,10 @@ async def test_nim_stream_retries_on_openai_5xx_then_streams(status_code):
 @pytest.mark.parametrize(
     ("status_code", "expect_substr"),
     [
-        (500, "provider api request failed"),
-        (502, "temporarily unavailable"),
-        (503, "temporarily unavailable"),
-        (504, "temporarily unavailable"),
+        (500, "提供方 api 请求失败"),
+        (502, "提供方暂时不可用"),
+        (503, "提供方暂时不可用"),
+        (504, "提供方暂时不可用"),
     ],
 )
 @pytest.mark.asyncio
@@ -107,7 +108,7 @@ async def test_nim_stream_openai_5xx_exhausted_emits_user_message(
             events = [e async for e in provider.stream_response(req)]
 
         assert mock_create.await_count == 4
-        blob = "".join(events)
-        assert expect_substr in blob.lower()
+        parsed = parse_sse_text("".join(events))
+        assert expect_substr in text_content(parsed).lower()
     finally:
         GlobalRateLimiter.reset_instance()

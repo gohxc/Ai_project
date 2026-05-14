@@ -33,7 +33,7 @@ async def test_telegram_voice_disabled_sends_reply():
 
     await telegram_platform._on_telegram_voice(mock_update, MagicMock())
 
-    mock_update.message.reply_text.assert_called_once_with("Voice notes are disabled.")
+    mock_update.message.reply_text.assert_called_once_with("语音备注已禁用。")
 
 
 @pytest.mark.asyncio
@@ -96,7 +96,7 @@ async def test_telegram_voice_success_invokes_handler(telegram_platform):
 
         mock_queue_send.assert_called_once()
         call_args, call_kw = mock_queue_send.call_args
-        assert "Transcribing voice note" in call_args[1]
+        assert "正在转写语音备注" in call_args[1]
         assert call_kw["reply_to"] == "42"
         assert call_kw["fire_and_forget"] is False
 
@@ -173,4 +173,4 @@ async def test_discord_voice_disabled_sends_reply():
 
     await platform._on_discord_message(mock_message)
 
-    mock_message.reply.assert_called_once_with("Voice notes are disabled.")
+    mock_message.reply.assert_called_once_with("语音备注已禁用。")

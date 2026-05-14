@@ -245,9 +245,7 @@ class ClaudeMessageHandler:
             await self.platform.queue_edit_message(
                 incoming.chat_id,
                 status_msg_id,
-                self.format_status(
-                    "📋", "Queued", f"(position {queue_size}) - waiting..."
-                ),
+                self.format_status("📋", "排队中", f"(第 {queue_size} 位)- 等待中..."),
                 parse_mode=self._parse_mode(),
             )
 
@@ -278,7 +276,7 @@ class ClaudeMessageHandler:
                     node.incoming.chat_id,
                     node.status_message_id,
                     self.format_status(
-                        "📋", "Queued", f"(position {position}) - waiting..."
+                        "📋", "排队中", f"(第 {position} 位)- 等待中..."
                     ),
                     parse_mode=self._parse_mode(),
                 )
@@ -293,7 +291,7 @@ class ClaudeMessageHandler:
             self.platform.queue_edit_message(
                 node.incoming.chat_id,
                 node.status_message_id,
-                self.format_status("🔄", "Processing..."),
+                self.format_status("🔄", "处理中..."),
                 parse_mode=self._parse_mode(),
             )
         )
@@ -497,16 +495,16 @@ class ClaudeMessageHandler:
                 cancel_reason = node.context.get("cancel_reason")
 
             if cancel_reason == "stop":
-                await update_ui(self.format_status("⏹", "Stopped."), force=True)
+                await update_ui(self.format_status("⏹", "已停止。"), force=True)
             else:
-                transcript.apply({"type": "error", "message": "Task was cancelled"})
-                await update_ui(self.format_status("❌", "Cancelled"), force=True)
+                transcript.apply({"type": "error", "message": "任务已取消"})
+                await update_ui(self.format_status("❌", "已取消"), force=True)
 
             # Do not propagate cancellation to children; a reply-scoped "/stop"
             # should only stop the targeted task.
             if tree:
                 await tree.update_state(
-                    node_id, MessageState.ERROR, error_message="Cancelled by user"
+                    node_id, MessageState.ERROR, error_message="用户已取消"
                 )
         except Exception as e:
             trace_event(
@@ -572,7 +570,7 @@ class ClaudeMessageHandler:
                 self.platform.queue_edit_message(
                     child.incoming.chat_id,
                     child.status_message_id,
-                    self.format_status("❌", "Cancelled:", child_status_text),
+                    self.format_status("❌", "已取消:", child_status_text),
                     parse_mode=self._parse_mode(),
                 )
             )
@@ -588,12 +586,12 @@ class ClaudeMessageHandler:
             if self.tree_queue.is_node_tree_busy(parent_node_id):
                 queue_size = self.tree_queue.get_queue_size(parent_node_id) + 1
                 return self.format_status(
-                    "📋", "Queued", f"(position {queue_size}) - waiting..."
+                    "📋", "排队中", f"(第 {queue_size} 位)- 等待中..."
                 )
-            return self.format_status("🔄", "Continuing conversation...")
+            return self.format_status("🔄", "继续对话中...")
 
         # New conversation
-        return self.format_status("⏳", "Launching new Claude CLI instance...")
+        return self.format_status("⏳", "正在启动新的 Claude CLI 实例...")
 
     async def stop_all_tasks(self) -> int:
         """
@@ -665,7 +663,7 @@ class ClaudeMessageHandler:
                 self.platform.queue_edit_message(
                     node.incoming.chat_id,
                     node.status_message_id,
-                    self.format_status("⏹", "Stopped."),
+                    self.format_status("⏹", "已停止。"),
                     parse_mode=self._parse_mode(),
                 )
             )

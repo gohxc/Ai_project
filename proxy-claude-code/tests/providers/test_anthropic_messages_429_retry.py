@@ -137,10 +137,10 @@ async def test_native_stream_retries_on_http_5xx_then_streams(
 @pytest.mark.parametrize(
     ("status_code", "substr"),
     [
-        (500, "Provider API request failed"),
-        (502, "Provider is currently overloaded"),
-        (503, "Provider is currently overloaded"),
-        (504, "Provider is currently overloaded"),
+        (500, "提供方 api 请求失败"),
+        (502, "提供方当前过载"),
+        (503, "提供方当前过载"),
+        (504, "提供方当前过载"),
     ],
 )
 @pytest.mark.asyncio
@@ -233,7 +233,7 @@ async def test_non_retryable_4xx_http_error_not_retried(provider_config):
             mock_send.assert_awaited_once()
             assert err.is_closed
             assert_canonical_stream_error_envelope(
-                events, user_message_substr="Invalid request sent to provider"
+                events, user_message_substr="发送给提供方的请求无效"
             )
     finally:
         GlobalRateLimiter.reset_instance()

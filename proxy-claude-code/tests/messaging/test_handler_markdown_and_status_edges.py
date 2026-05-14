@@ -88,17 +88,17 @@ def test_get_initial_status_branches():
         patch.object(handler.tree_queue, "get_queue_size", MagicMock(return_value=2)),
     ):
         s1 = handler._get_initial_status(tree=object(), parent_node_id="p")
-    assert "Queued" in s1
-    assert "position 3" in s1 or "position 3" in s1.replace("\\", "")
+    assert "排队中" in s1
+    assert "第 3 位" in s1 or "第 3 位" in s1.replace("\\", "")
 
     with patch.object(
         handler.tree_queue, "is_node_tree_busy", MagicMock(return_value=False)
     ):
         s2 = handler._get_initial_status(tree=object(), parent_node_id="p")
-    assert "Continuing" in s2
+    assert "继续对话中" in s2
 
     s3 = handler._get_initial_status(tree=None, parent_node_id=None)
-    assert "Launching" in s3
+    assert "正在启动新的 Claude CLI 实例" in s3
 
 
 @pytest.mark.asyncio

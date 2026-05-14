@@ -587,7 +587,7 @@ class TelegramPlatform(MessagingPlatform):
             return
 
         if not self._voice_note_enabled:
-            await update.message.reply_text("Voice notes are disabled.")
+            await update.message.reply_text("语音备注已禁用。")
             return
 
         user_id = str(update.effective_user.id)
@@ -607,7 +607,7 @@ class TelegramPlatform(MessagingPlatform):
         )
         status_msg_id = await self.queue_send_message(
             chat_id,
-            format_status("⏳", "Transcribing voice note..."),
+            format_status("⏳", "正在转写语音备注..."),
             reply_to=str(update.message.message_id),
             parse_mode="MarkdownV2",
             fire_and_forget=False,

@@ -191,13 +191,13 @@ def _format_provider_query_failures(
 
 
 def _format_missing_model_failure(ref: ConfiguredChatModelRef) -> str:
-    return _format_model_validation_failure(ref, "missing model")
+    return _format_model_validation_failure(ref, "模型不存在")
 
 
 def _format_model_validation_failure(ref: ConfiguredChatModelRef, problem: str) -> str:
     return (
-        f"sources={','.join(ref.sources)} provider={ref.provider_id} "
-        f"model={ref.model_id} problem={problem}"
+        f"来源={','.join(ref.sources)} 提供方={ref.provider_id} "
+        f"模型={ref.model_id} 问题={problem}"
     )
 
 
@@ -206,14 +206,14 @@ def _provider_query_failure_reason(
     settings: Settings,
 ) -> str:
     if isinstance(exc, ModelListResponseError):
-        return f"malformed model-list response: {exc.message}"
+        return f"模型列表响应格式异常:{exc.message}"
     if isinstance(exc, httpx.HTTPStatusError):
-        return f"query failure: HTTP {exc.response.status_code}"
+        return f"查询失败:HTTP {exc.response.status_code}"
     if isinstance(exc, AuthenticationError):
-        return f"query failure: {exc.message}"
+        return f"查询失败:{exc.message}"
     if isinstance(exc, ProviderError) and settings.log_api_error_tracebacks:
-        return f"query failure: {exc.message}"
-    return f"query failure: {type(exc).__name__}"
+        return f"查询失败:{exc.message}"
+    return f"查询失败:{type(exc).__name__}"
 
 
 def _referenced_provider_ids(settings: Settings) -> frozenset[str]:
@@ -432,7 +432,7 @@ class ProviderRegistry:
                 )
 
         if failures:
-            message = "Configured model validation failed:\n" + "\n".join(
+            message = "配置的模型验证失败:\n" + "\n".join(
                 f"- {failure}" for failure in failures
             )
             raise ServiceUnavailableError(message)

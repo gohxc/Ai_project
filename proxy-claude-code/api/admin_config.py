@@ -775,7 +775,168 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
     ),
 )
 
+SECTION_LABEL_ZH = {
+    "Providers": "提供方",
+    "Model Routing": "模型路由",
+    "Thinking": "思考",
+    "Runtime": "运行时",
+    "Messaging": "消息",
+    "Voice": "语音",
+    "Web Tools": "Web 工具",
+    "Diagnostics": "诊断",
+    "Smoke Tests": "Smoke 测试",
+}
+
+SECTION_DESCRIPTION_ZH = {
+    "Provider keys, local endpoints, and proxy settings.": "提供方密钥、本地端点和代理设置。",
+    "Provider-prefixed models used for Claude model tiers.": "供 Claude 各模型档位使用的提供方前缀模型。",
+    "Global and tier-specific thinking behavior.": "全局与各模型档位的思考行为。",
+    "Server API token, rate limits, timeouts, and process settings.": "服务 API 令牌、速率限制、超时和进程设置。",
+    "Discord, Telegram, CLI workspace, and session settings.": "Discord、Telegram、CLI 工作区和会话设置。",
+    "Voice note transcription settings.": "语音备注转写设置。",
+    "Local Anthropic web_search and web_fetch behavior.": "本地 Anthropic web_search 和 web_fetch 行为。",
+    "Logging and debugging flags.": "日志和调试开关。",
+    "Optional live smoke-test model overrides.": "可选的在线 smoke test 模型覆盖。",
+}
+
+FIELD_LABEL_ZH = {
+    "NVIDIA NIM API Key": "NVIDIA NIM API 密钥",
+    "OpenRouter API Key": "OpenRouter API 密钥",
+    "DeepSeek API Key": "DeepSeek API 密钥",
+    "Kimi API Key": "Kimi API 密钥",
+    "Wafer API Key": "Wafer API 密钥",
+    "OpenCode Zen API Key": "OpenCode Zen API 密钥",
+    "Z.ai API Key": "Z.ai API 密钥",
+    "Z.ai Base URL": "Z.ai 基础 URL",
+    "LM Studio Base URL": "LM Studio 基础 URL",
+    "llama.cpp Base URL": "llama.cpp 基础 URL",
+    "Ollama Base URL": "Ollama 基础 URL",
+    "NVIDIA NIM Proxy": "NVIDIA NIM 代理",
+    "OpenRouter Proxy": "OpenRouter 代理",
+    "LM Studio Proxy": "LM Studio 代理",
+    "llama.cpp Proxy": "llama.cpp 代理",
+    "Kimi Proxy": "Kimi 代理",
+    "Wafer Proxy": "Wafer 代理",
+    "OpenCode Zen Proxy": "OpenCode Zen 代理",
+    "Z.ai Proxy": "Z.ai 代理",
+    "Default Model": "默认模型",
+    "Opus Override": "Opus 覆盖",
+    "Sonnet Override": "Sonnet 覆盖",
+    "Haiku Override": "Haiku 覆盖",
+    "Enable Thinking": "启用思考",
+    "Opus Thinking": "Opus 思考",
+    "Sonnet Thinking": "Sonnet 思考",
+    "Haiku Thinking": "Haiku 思考",
+    "API/CLI Auth Token": "API/CLI 认证令牌",
+    "Provider Rate Limit": "提供方速率限制",
+    "Provider Rate Window": "提供方时间窗口",
+    "Provider Max Concurrency": "提供方最大并发",
+    "HTTP Read Timeout": "HTTP 读取超时",
+    "HTTP Write Timeout": "HTTP 写入超时",
+    "HTTP Connect Timeout": "HTTP 连接超时",
+    "Server Host": "服务主机",
+    "Server Port": "服务端口",
+    "Log File": "日志文件",
+    "Messaging Platform": "消息平台",
+    "Messaging Rate Limit": "消息速率限制",
+    "Messaging Rate Window": "消息速率窗口",
+    "Telegram Bot Token": "Telegram Bot 令牌",
+    "Allowed Telegram User ID": "允许的 Telegram 用户 ID",
+    "Discord Bot Token": "Discord Bot 令牌",
+    "Allowed Discord Channels": "允许的 Discord 频道",
+    "Claude Workspace": "Claude 工作区",
+    "Allowed Directory": "允许目录",
+    "Claude CLI Binary": "Claude CLI 可执行文件",
+    "Max Message Log Entries": "每个聊天的最大消息日志条目",
+    "Voice Notes": "语音备注",
+    "Whisper Device": "Whisper 设备",
+    "Whisper Model": "Whisper 模型",
+    "Hugging Face Token": "Hugging Face 令牌",
+    "Fast Prefix Detection": "快速前缀检测",
+    "Network Probe Mock": "网络探测模拟",
+    "Title Generation Skip": "跳过标题生成",
+    "Suggestion Mode Skip": "跳过建议模式",
+    "Filepath Extraction Mock": "文件路径提取模拟",
+    "Web Server Tools": "Web 服务工具",
+    "Allowed Web Fetch Schemes": "允许的 Web Fetch 协议",
+    "Allow Private Networks": "允许私有网络",
+    "Debug Platform Edits": "调试平台编辑",
+    "Debug Subagent Stack": "调试子代理栈",
+    "Log Raw API Payloads": "记录原始 API 载荷",
+    "Log Raw SSE Events": "记录原始 SSE 事件",
+    "Log API Error Tracebacks": "记录 API 错误回溯",
+    "Log Raw Messaging Content": "记录原始消息内容",
+    "Log Raw CLI Diagnostics": "记录原始 CLI 诊断信息",
+    "Log Messaging Error Details": "记录消息错误详情",
+    "Smoke NVIDIA NIM Model": "Smoke NIM 模型",
+    "Smoke OpenRouter Model": "Smoke OpenRouter 模型",
+    "Smoke DeepSeek Model": "Smoke DeepSeek 模型",
+    "Smoke LM Studio Model": "Smoke LM Studio 模型",
+    "Smoke llama.cpp Model": "Smoke llama.cpp 模型",
+    "Smoke Ollama Model": "Smoke Ollama 模型",
+    "Smoke Kimi Model": "Smoke Kimi 模型",
+    "Smoke Wafer Model": "Smoke Wafer 模型",
+    "Smoke OpenCode Zen Model": "Smoke OpenCode Zen 模型",
+    "Smoke Z.ai Model": "Smoke Z.ai 模型",
+    "Smoke NIM Models": "Smoke NIM 模型列表",
+    "Smoke NIM Extra Models": "Smoke NIM 额外模型",
+    "Smoke OpenRouter Free Models": "Smoke OpenRouter 免费模型",
+    "Smoke OpenRouter Free Extra Models": "Smoke OpenRouter 免费额外模型",
+}
+
+FIELD_DESCRIPTION_ZH = {
+    "Used by NVIDIA NIM chat and optional NIM voice transcription.": "用于 NVIDIA NIM 聊天及可选的 NIM 语音转写。",
+    "OpenCode Zen curated model gateway at opencode.ai.": "OpenCode Zen 在 opencode.ai 上提供的精选模型网关。",
+    "Z.ai Coding Plan API key.": "Z.ai Coding Plan API 密钥。",
+    "Z.ai OpenAI-compatible Coding Plan endpoint.": "Z.ai 兼容 OpenAI 的 Coding Plan 端点。",
+    "Fallback provider/model route for all Claude model names.": "所有 Claude 模型名的回退提供方/模型路由。",
+    "Optional provider/model route for Opus requests.": "可选的 Opus 请求提供方/模型路由。",
+    "Optional provider/model route for Sonnet requests.": "可选的 Sonnet 请求提供方/模型路由。",
+    "Optional provider/model route for Haiku requests.": "可选的 Haiku 请求提供方/模型路由。",
+    "Blank inherits Enable Thinking.": "留空则继承“启用思考”。",
+    "Protects Claude/API access. It is not admin-page login.": "保护 Claude/API 访问。它不是管理页面登录。",
+}
+
 FIELD_BY_KEY = {field.key: field for field in FIELDS}
+
+
+def _display_section_label(section: ConfigSectionSpec) -> str:
+    return SECTION_LABEL_ZH.get(section.label, section.label)
+
+
+def _display_section_description(section: ConfigSectionSpec) -> str:
+    return SECTION_DESCRIPTION_ZH.get(section.description, section.description)
+
+
+def _display_field_label(field: ConfigFieldSpec) -> str:
+    return FIELD_LABEL_ZH.get(field.label, field.label)
+
+
+def _display_field_description(field: ConfigFieldSpec) -> str:
+    return FIELD_DESCRIPTION_ZH.get(field.description, field.description)
+
+
+def _display_field_option(field: ConfigFieldSpec, value: str) -> str:
+    if field.key == "MESSAGING_PLATFORM":
+        return {"telegram": "Telegram", "discord": "Discord", "none": "不启用"}.get(
+            value, value
+        )
+    if field.key == "WHISPER_DEVICE":
+        return {"cpu": "CPU", "cuda": "CUDA", "nvidia_nim": "NVIDIA NIM"}.get(
+            value, value
+        )
+    return value
+
+
+def _display_source_label(source: SourceType) -> str:
+    return {
+        "default": "默认",
+        "template": "模板",
+        "repo_env": "仓库 .env",
+        "managed_env": "受管理",
+        "explicit_env_file": "FCC_ENV_FILE",
+        "process": "进程环境",
+    }.get(source, source)
 
 
 def managed_env_path() -> Path:
@@ -912,7 +1073,7 @@ def load_config_response() -> dict[str, Any]:
         fields.append(
             {
                 "key": field.key,
-                "label": field.label,
+                "label": _display_field_label(field),
                 "section": field.section_id,
                 "type": field.field_type,
                 "value": _display_value(field, raw_value),
@@ -924,7 +1085,11 @@ def load_config_response() -> dict[str, Any]:
                 "restart_required": field.restart_required,
                 "session_sensitive": field.session_sensitive,
                 "options": list(field.options),
-                "description": field.description,
+                "option_labels": {
+                    option: _display_field_option(field, option)
+                    for option in field.options
+                },
+                "description": _display_field_description(field),
             }
         )
 
@@ -932,8 +1097,8 @@ def load_config_response() -> dict[str, Any]:
         "sections": [
             {
                 "id": section.section_id,
-                "label": section.label,
-                "description": section.description,
+                "label": _display_section_label(section),
+                "description": _display_section_description(section),
                 "advanced": section.advanced,
             }
             for section in SECTIONS
@@ -1082,8 +1247,8 @@ def render_env_file(values: Mapping[str, str], *, mask_secrets: bool = False) ->
     """Render a complete grouped env file."""
 
     lines: list[str] = [
-        "# Managed by Free Claude Code /admin.",
-        "# Edit in the server UI when possible.",
+        "# 由 Free Claude Code /admin 管理。",
+        "# 尽量在服务端界面中编辑。",
         "",
     ]
     fields_by_section: dict[str, list[ConfigFieldSpec]] = {
@@ -1093,7 +1258,7 @@ def render_env_file(values: Mapping[str, str], *, mask_secrets: bool = False) ->
         fields_by_section.setdefault(field.section_id, []).append(field)
 
     for section in SECTIONS:
-        lines.append(f"# {section.label}")
+        lines.append(f"# {_display_section_label(section)}")
         for field in fields_by_section.get(section.section_id, []):
             value = values.get(field.key, field.default)
             if mask_secrets and field.secret and value:
@@ -1120,7 +1285,7 @@ def provider_config_status(
                     "provider_id": provider_id,
                     "kind": "local",
                     "status": "missing_url" if not base_url.strip() else "unknown",
-                    "label": "Missing URL" if not base_url.strip() else "Not checked",
+                    "label": "缺少 URL" if not base_url.strip() else "未检查",
                     "base_url": base_url or descriptor.default_base_url or "",
                 }
             )
@@ -1133,7 +1298,7 @@ def provider_config_status(
                 "provider_id": provider_id,
                 "kind": "remote",
                 "status": "configured" if configured else "missing_key",
-                "label": "Configured" if configured else "Missing key",
+                "label": "已配置" if configured else "缺少密钥",
                 "credential_env": descriptor.credential_env,
             }
         )

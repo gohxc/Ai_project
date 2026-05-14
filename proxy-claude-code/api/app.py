@@ -179,7 +179,7 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
                 "type": "error",
                 "error": {
                     "type": "api_error",
-                    "message": "An unexpected error occurred.",
+                    "message": "发生了未预期的错误。",
                 },
             },
         )

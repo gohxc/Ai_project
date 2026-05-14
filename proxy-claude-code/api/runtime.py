@@ -112,10 +112,10 @@ class AppRuntime:
             self._provider_registry.start_model_list_refresh(self.settings)
             await self._start_messaging_if_configured()
             self._publish_state()
-            logger.info("Server URL: {}", root_url)
-            logger.info("Admin UI: {} (local-only)", admin_url)
+            logger.info("服务 URL: {}", root_url)
+            logger.info("管理界面:{}(仅限本机访问)", admin_url)
             print(
-                f"Server URL: {root_url}\nAdmin UI: {admin_url} (local-only)",
+                f"服务 URL: {root_url}\n管理界面:{admin_url}(仅限本机访问)",
                 file=sys.stderr,
                 flush=True,
             )

@@ -28,9 +28,7 @@ async def handle_stop_command(
         if not node_id:
             msg_id = await handler.platform.queue_send_message(
                 incoming.chat_id,
-                handler.format_status(
-                    "⏹", "Stopped.", "Nothing to stop for that message."
-                ),
+                handler.format_status("⏹", "已停止。", "该消息没有可停止的任务。"),
                 fire_and_forget=False,
                 message_thread_id=incoming.message_thread_id,
             )
@@ -40,10 +38,9 @@ async def handle_stop_command(
             return
 
         count = await handler.stop_task(node_id)
-        noun = "request" if count == 1 else "requests"
         msg_id = await handler.platform.queue_send_message(
             incoming.chat_id,
-            handler.format_status("⏹", "Stopped.", f"Cancelled {count} {noun}."),
+            handler.format_status("⏹", "已停止。", f"已取消 {count} 个请求。"),
             fire_and_forget=False,
             message_thread_id=incoming.message_thread_id,
         )
@@ -57,7 +54,7 @@ async def handle_stop_command(
     msg_id = await handler.platform.queue_send_message(
         incoming.chat_id,
         handler.format_status(
-            "⏹", "Stopped.", f"Cancelled {count} pending or active requests."
+            "⏹", "已停止。", f"已取消 {count} 个待处理或正在处理的请求。"
         ),
         fire_and_forget=False,
         message_thread_id=incoming.message_thread_id,
@@ -77,11 +74,11 @@ async def handle_stats_command(
     msg_id = await handler.platform.queue_send_message(
         incoming.chat_id,
         "📊 "
-        + ctx.bold("Stats")
+        + ctx.bold("状态统计")
         + "\n"
-        + ctx.escape_text(f"• Active CLI: {stats['active_sessions']}")
+        + ctx.escape_text(f"• 活跃 CLI:{stats['active_sessions']}")
         + "\n"
-        + ctx.escape_text(f"• Message Trees: {tree_count}"),
+        + ctx.escape_text(f"• 消息树:{tree_count}"),
         fire_and_forget=False,
         message_thread_id=incoming.message_thread_id,
     )
@@ -206,7 +203,7 @@ async def handle_clear_command(
                     await _delete_message_ids(handler, incoming.chat_id, msg_ids_to_del)
                     msg_id = await handler.platform.queue_send_message(
                         incoming.chat_id,
-                        handler.format_status("🗑", "Cleared.", "Voice note cancelled."),
+                        handler.format_status("🗑", "已清除。", "语音备注已取消。"),
                         fire_and_forget=False,
                         message_thread_id=incoming.message_thread_id,
                     )
@@ -216,9 +213,7 @@ async def handle_clear_command(
                     return
             msg_id = await handler.platform.queue_send_message(
                 incoming.chat_id,
-                handler.format_status(
-                    "🗑", "Cleared.", "Nothing to clear for that message."
-                ),
+                handler.format_status("🗑", "已清除。", "该消息没有可清除的内容。"),
                 fire_and_forget=False,
                 message_thread_id=incoming.message_thread_id,
             )

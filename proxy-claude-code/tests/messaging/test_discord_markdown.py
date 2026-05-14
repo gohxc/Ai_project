@@ -79,9 +79,7 @@ class TestFormatStatusDiscord:
 
     def test_label_with_suffix(self):
         # Parentheses not in DISCORD_SPECIAL, so unchanged
-        assert (
-            format_status_discord("Queued", "(position 2)") == "**Queued** (position 2)"
-        )
+        assert format_status_discord("排队中", "(第 2 位)") == "**排队中** (第 2 位)"
 
 
 class TestFormatStatus:

@@ -40,13 +40,13 @@ TRANSCRIPT_EVENT_TYPES = frozenset(
 
 # Event type -> (emoji, label) for status updates (O(1) lookup)
 _EVENT_STATUS_MAP: dict[str, tuple[str, str]] = {
-    "thinking_start": ("🧠", "Claude is thinking..."),
-    "thinking_delta": ("🧠", "Claude is thinking..."),
-    "thinking_chunk": ("🧠", "Claude is thinking..."),
-    "text_start": ("🧠", "Claude is working..."),
-    "text_delta": ("🧠", "Claude is working..."),
-    "text_chunk": ("🧠", "Claude is working..."),
-    "tool_result": ("⏳", "Executing tools..."),
+    "thinking_start": ("🧠", "Claude 正在思考..."),
+    "thinking_delta": ("🧠", "Claude 正在思考..."),
+    "thinking_chunk": ("🧠", "Claude 正在思考..."),
+    "text_start": ("🧠", "Claude 正在工作..."),
+    "text_delta": ("🧠", "Claude 正在工作..."),
+    "text_chunk": ("🧠", "Claude 正在工作..."),
+    "tool_result": ("⏳", "正在执行工具..."),
 }
 
 
@@ -62,6 +62,6 @@ def get_status_for_event(
         return format_status_fn(emoji, label)
     if ptype in ("tool_use_start", "tool_use_delta", "tool_use"):
         if parsed.get("name") == "Task":
-            return format_status_fn("🤖", "Subagent working...")
-        return format_status_fn("⏳", "Executing tools...")
+            return format_status_fn("🤖", "子代理正在工作...")
+        return format_status_fn("⏳", "正在执行工具...")
     return None

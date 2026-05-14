@@ -173,7 +173,7 @@ class DiscordPlatform(MessagingPlatform):
     ) -> bool:
         """Handle voice/audio attachment. Returns True if handled."""
         if not self._voice_note_enabled:
-            await message.reply("Voice notes are disabled.")
+            await message.reply("语音备注已禁用。")
             return True
 
         if not self._message_handler:
@@ -181,7 +181,7 @@ class DiscordPlatform(MessagingPlatform):
 
         status_msg_id = await self.queue_send_message(
             channel_id,
-            format_status_discord("Transcribing voice note..."),
+            format_status_discord("正在转写语音备注..."),
             reply_to=str(message.id),
             fire_and_forget=False,
         )

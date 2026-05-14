@@ -91,11 +91,11 @@ class TestMapError:
     @pytest.mark.parametrize(
         ("status_code", "expect_substr"),
         [
-            (500, "provider api request failed"),
-            (502, "temporarily unavailable"),
-            (503, "temporarily unavailable"),
-            (504, "temporarily unavailable"),
-            (599, "provider api request failed"),
+            (500, "提供方 api 请求失败"),
+            (502, "提供方暂时不可用"),
+            (503, "提供方暂时不可用"),
+            (504, "提供方暂时不可用"),
+            (599, "提供方 api 请求失败"),
         ],
     )
     def test_internal_server_error_preserves_5xx_status_for_messaging(
@@ -138,13 +138,13 @@ def test_user_facing_message_read_timeout_empty_string():
     """ReadTimeout wrapping TimeoutError should still produce readable text."""
     timeout_exc = ReadTimeout("")
     message = get_user_facing_error_message(timeout_exc, read_timeout_s=60)
-    assert message == "Provider request timed out after 60s."
+    assert message == "提供方请求在 60s 后超时。"
 
 
 def test_append_request_id_suffix():
     """Request id suffix should be appended deterministically."""
-    message = append_request_id("Provider request failed.", "req_abc123")
-    assert message == "Provider request failed. (request_id=req_abc123)"
+    message = append_request_id("提供方请求失败。", "req_abc123")
+    assert message == "提供方请求失败。 (request_id=req_abc123)"
 
 
 def test_user_facing_message_bad_request_prefers_mapped_text_over_sdk_string():
@@ -152,7 +152,7 @@ def test_user_facing_message_bad_request_prefers_mapped_text_over_sdk_string():
     exc = _make_openai_error(
         openai.BadRequestError, message="leaky-upstream-detail", status_code=400
     )
-    assert get_user_facing_error_message(exc) == "Invalid request sent to provider."
+    assert get_user_facing_error_message(exc) == "发送给提供方的请求无效。"
 
 
 def test_format_user_error_preview_truncates():

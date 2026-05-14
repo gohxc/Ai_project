@@ -17,44 +17,44 @@ def get_user_facing_error_message(
     """
     if isinstance(e, httpx.ReadTimeout):
         if read_timeout_s is not None:
-            return f"Provider request timed out after {read_timeout_s:g}s."
-        return "Provider request timed out."
+            return f"提供方请求在 {read_timeout_s:g}s 后超时。"
+        return "提供方请求超时。"
     if isinstance(e, httpx.ConnectTimeout):
-        return "Could not connect to provider."
+        return "无法连接到提供方。"
     if isinstance(e, TimeoutError):
         if read_timeout_s is not None:
-            return f"Provider request timed out after {read_timeout_s:g}s."
-        return "Request timed out."
+            return f"提供方请求在 {read_timeout_s:g}s 后超时。"
+        return "请求超时。"
 
     if isinstance(e, openai.RateLimitError):
-        return "Provider rate limit reached. Please retry shortly."
+        return "提供方触发限流,请稍后重试。"
     if isinstance(e, openai.AuthenticationError):
-        return "Provider authentication failed. Check API key."
+        return "提供方认证失败,请检查 API 密钥。"
     if isinstance(e, openai.BadRequestError):
-        return "Invalid request sent to provider."
+        return "发送给提供方的请求无效。"
 
     name = type(e).__name__
     status_code = getattr(e, "status_code", None)
     if name == "RateLimitError":
-        return "Provider rate limit reached. Please retry shortly."
+        return "提供方触发限流,请稍后重试。"
     if name == "AuthenticationError":
-        return "Provider authentication failed. Check API key."
+        return "提供方认证失败,请检查 API 密钥。"
     if name == "InvalidRequestError":
-        return "Invalid request sent to provider."
+        return "发送给提供方的请求无效。"
     if name == "OverloadedError":
-        return "Provider is currently overloaded. Please retry."
+        return "提供方当前过载,请稍后重试。"
     if name == "APIError":
         if status_code in (502, 503, 504):
-            return "Provider is temporarily unavailable. Please retry."
-        return "Provider API request failed."
+            return "提供方暂时不可用,请稍后重试。"
+        return "提供方 api 请求失败。"
     if name.endswith("ProviderError") or name == "ProviderError":
-        return "Provider request failed."
+        return "提供方请求失败。"
 
     message = str(e).strip()
     if message:
         return message
 
-    return "Provider request failed unexpectedly."
+    return "提供方请求意外失败。"
 
 
 def format_user_error_preview(exc: Exception, *, max_len: int = 200) -> str:
@@ -64,7 +64,7 @@ def format_user_error_preview(exc: Exception, *, max_len: int = 200) -> str:
 
 def append_request_id(message: str, request_id: str | None) -> str:
     """Append request_id suffix when available."""
-    base = message.strip() or "Provider request failed unexpectedly."
+    base = message.strip() or "提供方请求意外失败。"
     if request_id:
         return f"{base} (request_id={request_id})"
     return base

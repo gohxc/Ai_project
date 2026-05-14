@@ -257,7 +257,7 @@ async def test_stream_error_status_code(llamacpp_provider):
         ]
 
         assert_canonical_stream_error_envelope(
-            events, user_message_substr="Provider API request failed"
+            events, user_message_substr="提供方 api 请求失败"
         )
         assert "TEST_ID" in "".join(events)
 

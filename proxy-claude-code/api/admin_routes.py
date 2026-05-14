@@ -66,17 +66,17 @@ def require_loopback_admin(request: Request) -> None:
 
     client_host = request.client.host if request.client else None
     if not _is_loopback_host(client_host):
-        raise HTTPException(status_code=403, detail="Admin UI is local-only")
+        raise HTTPException(status_code=403, detail="管理界面仅限本机访问")
 
     origin = request.headers.get("origin")
     if not _origin_is_local(origin):
-        raise HTTPException(status_code=403, detail="Admin UI is local-only")
+        raise HTTPException(status_code=403, detail="管理界面仅限本机访问")
 
 
 def _asset_response(filename: str) -> FileResponse:
     path = STATIC_DIR / filename
     if not path.is_file():
-        raise HTTPException(status_code=404, detail="Admin asset not found")
+        raise HTTPException(status_code=404, detail="未找到管理界面资源")
     return FileResponse(path)
 
 
@@ -90,7 +90,7 @@ async def admin_page(request: Request):
 async def admin_asset(filename: str, request: Request):
     require_loopback_admin(request)
     if filename not in {"admin.css", "admin.js"}:
-        raise HTTPException(status_code=404, detail="Admin asset not found")
+        raise HTTPException(status_code=404, detail="未找到管理界面资源")
     return _asset_response(filename)
 
 
@@ -261,7 +261,7 @@ async def _check_local_provider(
         return {
             "provider_id": provider_id,
             "status": "missing_url",
-            "label": "Missing URL",
+            "label": "缺少 URL",
             "base_url": base_url,
         }
 
@@ -273,7 +273,7 @@ async def _check_local_provider(
         return {
             "provider_id": provider_id,
             "status": "reachable" if ok else "offline",
-            "label": "Reachable" if ok else "Offline",
+            "label": "可连接" if ok else "离线",
             "base_url": base_url,
             "status_code": response.status_code,
         }
@@ -281,7 +281,7 @@ async def _check_local_provider(
         return {
             "provider_id": provider_id,
             "status": "offline",
-            "label": "Offline",
+            "label": "离线",
             "base_url": base_url,
             "error_type": type(exc).__name__,
         }

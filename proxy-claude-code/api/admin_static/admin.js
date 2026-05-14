@@ -12,12 +12,12 @@ const byId = (id) => document.getElementById(id);
 
 function sourceLabel(source) {
   const labels = {
-    default: "default",
-    template: "template",
-    repo_env: "repo .env",
-    managed_env: "managed",
+    default: "默认",
+    template: "模板",
+    repo_env: "仓库 .env",
+    managed_env: "受管理",
     explicit_env_file: "FCC_ENV_FILE",
-    process: "process env",
+    process: "进程环境",
   };
   return labels[source] || source;
 }
@@ -61,7 +61,7 @@ async function api(path, options = {}) {
 }
 
 async function load() {
-  showMessage("Loading admin config");
+  showMessage("正在加载管理配置");
   const [config, status] = await Promise.all([
     api("/admin/api/config"),
     api("/admin/api/status"),
@@ -82,7 +82,7 @@ async function load() {
 
 function updateHeader(status) {
   const serverStatus = byId("serverStatus");
-  serverStatus.textContent = "Running";
+  serverStatus.textContent = "运行中";
   serverStatus.className = "status-pill ok";
   byId("modelBadge").textContent = status.model || "";
 }
@@ -127,13 +127,13 @@ function renderProviders(providerStatus) {
     meta.className = "provider-meta";
     meta.textContent =
       provider.kind === "local"
-        ? provider.base_url || "No local URL configured"
+        ? provider.base_url || "未配置本地 URL"
         : provider.credential_env;
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = "test-button";
-    button.textContent = provider.kind === "local" ? "Test" : "Refresh models";
+    button.textContent = provider.kind === "local" ? "测试" : "刷新模型";
     button.addEventListener("click", () => testProvider(provider.provider_id, button));
 
     card.append(title, meta, button);
@@ -183,10 +183,10 @@ function renderSections(sections, fields) {
       const toggle = document.createElement("button");
       toggle.type = "button";
       toggle.className = "ghost-button advanced-toggle";
-      toggle.textContent = "Show advanced";
+      toggle.textContent = "显示高级项";
       toggle.addEventListener("click", () => {
         const showing = sectionEl.classList.toggle("show-advanced");
-        toggle.textContent = showing ? "Hide advanced" : "Show advanced";
+        toggle.textContent = showing ? "隐藏高级项" : "显示高级项";
       });
       sectionEl.appendChild(toggle);
     }
@@ -238,9 +238,9 @@ function inputForField(field) {
   if (field.type === "tri_boolean") {
     const select = document.createElement("select");
     [
-      ["", "Inherit"],
-      ["true", "Enabled"],
-      ["false", "Disabled"],
+      ["", "继承"],
+      ["true", "启用"],
+      ["false", "禁用"],
     ].forEach(([value, label]) => select.appendChild(option(value, label)));
     select.value = field.value || "";
     return select;
@@ -248,7 +248,10 @@ function inputForField(field) {
 
   if (field.type === "select") {
     const select = document.createElement("select");
-    field.options.forEach((value) => select.appendChild(option(value, value)));
+    field.options.forEach((value) => {
+      const label = (field.option_labels || {})[value] || value;
+      select.appendChild(option(value, label));
+    });
     select.value = field.value || field.options[0] || "";
     return select;
   }
@@ -264,8 +267,8 @@ function inputForField(field) {
   if (field.type === "secret") {
     input.type = "password";
     input.placeholder = field.configured
-      ? "Configured - enter a new value to replace"
-      : "Not configured";
+      ? "已配置，输入新值将覆盖"
+      : "未配置";
     input.value = "";
     input.autocomplete = "off";
   } else {
@@ -307,7 +310,7 @@ function changedValues() {
 function updateDirtyState() {
   const count = Object.keys(changedValues()).length;
   byId("dirtyState").textContent =
-    count === 0 ? "No changes" : `${count} unsaved change${count === 1 ? "" : "s"}`;
+    count === 0 ? "无更改" : `${count} 个未保存更改`;
   byId("applyButton").disabled = count === 0;
 }
 
@@ -325,9 +328,9 @@ async function validate(showResult = true) {
 
 function showValidationResult(result) {
   if (result.valid) {
-    showMessage("Config shape is valid", "ok");
+    showMessage("配置结构有效", "ok");
   } else {
-    showMessage(result.errors.join("; "), "error");
+    showMessage(result.errors.join("；"), "error");
   }
 }
 
@@ -343,7 +346,7 @@ async function apply() {
   }
   const restart = result.restart || {};
   if (restart.required && restart.automatic) {
-    showMessage("Applied. Restarting server...", "ok");
+    showMessage("已应用，正在重启服务...", "ok");
     byId("applyButton").disabled = true;
     setTimeout(() => {
       window.location.href = restart.admin_url || "/admin";
@@ -354,8 +357,8 @@ async function apply() {
   await load();
   showMessage(
     pending.length
-      ? `Applied. Restart fcc-server to use: ${pending.join(", ")}`
-      : "Applied",
+      ? `已应用。请重启 fcc-server 以生效：${pending.join(", ")}`
+      : "已应用",
     "ok",
   );
 }
@@ -365,7 +368,7 @@ async function refreshLocalStatus() {
   result.providers.forEach((provider) => {
     state.localStatus.set(provider.provider_id, provider);
     const meta = provider.status_code
-      ? `${provider.base_url} returned HTTP ${provider.status_code}`
+      ? `${provider.base_url} 返回 HTTP ${provider.status_code}`
       : provider.base_url;
     updateProviderCard(provider.provider_id, provider.status, provider.label, meta);
   });
@@ -374,7 +377,7 @@ async function refreshLocalStatus() {
 async function testProvider(providerId, button) {
   const original = button.textContent;
   button.disabled = true;
-  button.textContent = "Testing";
+  button.textContent = "测试中";
   try {
     const result = await api(`/admin/api/providers/${providerId}/test`, {
       method: "POST",
@@ -384,8 +387,8 @@ async function testProvider(providerId, button) {
       updateProviderCard(
         providerId,
         "reachable",
-        `${result.models.length} models`,
-        result.models.slice(0, 3).join(", ") || "No models returned",
+        `${result.models.length} 个模型`,
+        result.models.slice(0, 3).join(", ") || "未返回模型",
       );
       state.modelOptions = Array.from(
         new Set([...state.modelOptions, ...result.models.map((model) => `${providerId}/${model}`)]),
@@ -422,7 +425,7 @@ byId("applyButton").addEventListener("click", apply);
 byId("refreshLocal").addEventListener("click", refreshLocalStatus);
 
 load().catch((error) => {
-  byId("serverStatus").textContent = "Error";
+  byId("serverStatus").textContent = "错误";
   byId("serverStatus").className = "status-pill error";
   showMessage(error.message, "error");
 });

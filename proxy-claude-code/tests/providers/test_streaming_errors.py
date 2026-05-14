@@ -11,6 +11,7 @@ from config.nim import NimSettings
 from core.anthropic.stream_contracts import (
     assert_anthropic_stream_contract,
     parse_sse_text,
+    text_content,
 )
 from providers.base import ProviderConfig
 from providers.nvidia_nim import NvidiaNimProvider
@@ -202,10 +203,12 @@ class TestStreamingExceptionHandling:
             ]
 
         event_text = "".join(events)
-        assert "timed out after" in event_text
-        assert "request_id=req_timeout123" in event_text
+        error_text = text_content(parse_sse_text(event_text))
+        assert "提供方请求在" in error_text
+        assert "后超时" in error_text
+        assert "request_id=req_timeout123" in error_text
         assert "message_stop" in event_text
-        _assert_no_content_deltas_after_error_text(events, "timed out after")
+        _assert_no_content_deltas_after_error_text(events, "提供方请求在")
 
     @pytest.mark.asyncio
     async def test_error_after_partial_content(self):

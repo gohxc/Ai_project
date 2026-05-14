@@ -31,4 +31,4 @@ def local_admin_url(settings: Settings) -> str:
 def admin_launch_message(settings: Settings) -> str:
     """Return the startup message shown by supported launch commands."""
 
-    return f"Admin UI: {local_admin_url(settings)} (local-only)"
+    return f"管理界面: {local_admin_url(settings)} (仅限本机访问)"

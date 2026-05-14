@@ -74,8 +74,8 @@ async def test_messaging_commands_stop_clear_stats_e2e(
     await driver.send("/clear", message_id="clear_all")
 
     sent_text = "\n".join(sent["text"] for sent in driver.platform.sent)
-    assert "Stats" in sent_text
-    assert "Stopped" in sent_text
+    assert "状态统计" in sent_text
+    assert "已停止" in sent_text
     assert driver.platform.deletes
     assert driver.session_store.get_all_trees() == {}
 
@@ -129,4 +129,4 @@ async def test_voice_platform_fake_e2e(platform_name: str, tmp_path) -> None:
     deleted = {entry["message_id"] for entry in driver.platform.deletes}
     assert {"voice_msg_1", "voice_status_1", "clear_voice"} <= deleted
     sent_text = "\n".join(sent["text"] for sent in driver.platform.sent)
-    assert "Voice note cancelled" in sent_text
+    assert "语音备注已取消" in sent_text

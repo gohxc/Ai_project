@@ -40,7 +40,7 @@ def _load_env_template() -> str:
     if source_template.is_file():
         return source_template.read_text(encoding="utf-8")
 
-    raise FileNotFoundError("Could not find bundled or source .env.example template.")
+    raise FileNotFoundError("未找到捆绑或源码中的 .env.example 模板。")
 
 
 def serve() -> None:
@@ -92,15 +92,15 @@ def init() -> None:
     env_file = config_dir / ".env"
 
     if env_file.exists():
-        print(f"Config already exists at {env_file}")
-        print("Delete it first if you want to reset to defaults.")
+        print(f"配置已存在:{env_file}")
+        print("如需重置为默认值,请先删除它。")
         return
 
     config_dir.mkdir(parents=True, exist_ok=True)
     template = _load_env_template()
     env_file.write_text(template, encoding="utf-8")
-    print(f"Config created at {env_file}")
-    print("Edit it to set your API keys and model preferences, then run: fcc-server")
+    print(f"配置已创建:{env_file}")
+    print("请编辑它来设置 API 密钥和模型偏好,然后运行:fcc-server")
 
 
 def _claude_child_env(
@@ -147,21 +147,21 @@ def launch_claude(argv: Sequence[str] | None = None) -> None:
     proxy_root_url = local_proxy_root_url(settings)
     if error := _preflight_proxy(proxy_root_url):
         print(
-            f"Free Claude Code proxy is not reachable at {proxy_root_url}: {error}",
+            f"Free Claude Code 代理在 {proxy_root_url} 不可用:{error}",
             file=sys.stderr,
         )
-        print("Start it in another terminal with: fcc-server", file=sys.stderr)
+        print("请在另一个终端中运行:fcc-server", file=sys.stderr)
         raise SystemExit(1)
 
     args = list(sys.argv[1:] if argv is None else argv)
     claude_command = shutil.which(settings.claude_cli_bin)
     if claude_command is None:
         print(
-            f"Could not find Claude Code command: {settings.claude_cli_bin}",
+            f"未找到 Claude Code 命令:{settings.claude_cli_bin}",
             file=sys.stderr,
         )
         print(
-            "Install Claude Code with: npm install -g @anthropic-ai/claude-code",
+            "请使用以下命令安装 Claude Code:npm install -g @anthropic-ai/claude-code",
             file=sys.stderr,
         )
         raise SystemExit(127)
@@ -176,11 +176,11 @@ def launch_claude(argv: Sequence[str] | None = None) -> None:
         return_code = process.wait()
     except FileNotFoundError:
         print(
-            f"Could not find Claude Code command: {settings.claude_cli_bin}",
+            f"未找到 Claude Code 命令:{settings.claude_cli_bin}",
             file=sys.stderr,
         )
         print(
-            "Install Claude Code with: npm install -g @anthropic-ai/claude-code",
+            "请使用以下命令安装 Claude Code:npm install -g @anthropic-ai/claude-code",
             file=sys.stderr,
         )
         raise SystemExit(127) from None

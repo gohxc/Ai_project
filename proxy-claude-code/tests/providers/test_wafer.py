@@ -251,6 +251,6 @@ async def test_stream_non_200_maps_to_anthropic_error_event(wafer_provider):
 
     assert response.is_closed
     assert_canonical_stream_error_envelope(
-        events, user_message_substr="Provider API request failed"
+        events, user_message_substr="提供方 api 请求失败"
     )
     assert "REQ_WAFER" in "".join(events)

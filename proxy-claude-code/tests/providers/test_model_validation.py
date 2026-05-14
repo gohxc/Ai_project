@@ -381,10 +381,10 @@ async def test_registry_validation_reports_missing_model_with_sources() -> None:
         await registry.validate_configured_models(settings)
 
     message = exc_info.value.message
-    assert "sources=MODEL,MODEL_SONNET" in message
-    assert "provider=nvidia_nim" in message
-    assert "model=nim-model" in message
-    assert "problem=missing model" in message
+    assert "来源=MODEL,MODEL_SONNET" in message
+    assert "提供方=nvidia_nim" in message
+    assert "模型=nim-model" in message
+    assert "问题=模型不存在" in message
 
 
 @pytest.mark.asyncio
@@ -403,12 +403,10 @@ async def test_registry_validation_aggregates_multiple_failures() -> None:
         await registry.validate_configured_models(settings)
 
     message = exc_info.value.message
-    assert "sources=MODEL provider=nvidia_nim model=nim-model" in message
-    assert "problem=missing model" in message
-    assert "sources=MODEL_OPUS provider=open_router model=anthropic/claude-opus" in (
-        message
-    )
-    assert "problem=malformed model-list response" in message
+    assert "来源=MODEL 提供方=nvidia_nim 模型=nim-model" in message
+    assert "问题=模型不存在" in message
+    assert "来源=MODEL_OPUS 提供方=open_router 模型=anthropic/claude-opus" in (message)
+    assert "问题=模型列表响应格式异常" in message
 
 
 @pytest.mark.asyncio

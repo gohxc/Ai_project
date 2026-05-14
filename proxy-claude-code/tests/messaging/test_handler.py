@@ -60,7 +60,7 @@ async def test_handle_message_log_raw_messaging_does_not_change_turn_received_sh
 def test_get_initial_status_new_conversation(handler):
     """New conversation always returns launching message."""
     result = handler._get_initial_status(None, None)
-    assert "Launching" in result
+    assert "正在启动新的 Claude CLI 实例" in result
 
 
 def test_get_initial_status_reply_tree_busy_queued(handler):
@@ -70,8 +70,8 @@ def test_get_initial_status_reply_tree_busy_queued(handler):
     mock_queue.get_queue_size.return_value = 2
     handler.replace_tree_queue(mock_queue)
     result = handler._get_initial_status(MagicMock(), "parent_1")
-    assert "Queued" in result
-    assert "position 3" in result
+    assert "排队中" in result
+    assert "第 3 位" in result
 
 
 def test_get_initial_status_reply_tree_not_busy_continuing(handler):
@@ -80,7 +80,7 @@ def test_get_initial_status_reply_tree_not_busy_continuing(handler):
     mock_queue.is_node_tree_busy.return_value = False
     handler.replace_tree_queue(mock_queue)
     result = handler._get_initial_status(MagicMock(), "parent_1")
-    assert "Continuing" in result
+    assert "继续对话中" in result
 
 
 @pytest.mark.asyncio
@@ -97,7 +97,7 @@ async def test_handle_message_stop_command(
     handler.stop_all_tasks.assert_called_once()
     mock_platform.queue_send_message.assert_called_once_with(
         incoming.chat_id,
-        "⏹ *Stopped\\.* Cancelled 5 pending or active requests\\.",
+        "⏹ *已停止。* 已取消 5 个待处理或正在处理的请求。",
         fire_and_forget=False,
         message_thread_id=None,
     )
@@ -134,7 +134,7 @@ async def test_handle_message_stop_command_reply_stops_only_target_node(
     assert tree.get_node("root_msg").state == MessageState.ERROR
     mock_platform.queue_send_message.assert_called_once_with(
         incoming.chat_id,
-        "⏹ *Stopped\\.* Cancelled 1 request\\.",
+        "⏹ *已停止。* 已取消 1 个请求。",
         fire_and_forget=False,
         message_thread_id=None,
     )
@@ -158,7 +158,7 @@ async def test_handle_message_stop_command_reply_unknown_does_not_stop_all(
     mock_cli_manager.stop_all.assert_not_called()
     mock_platform.queue_send_message.assert_called_once_with(
         incoming.chat_id,
-        "⏹ *Stopped\\.* Nothing to stop for that message\\.",
+        "⏹ *已停止。* 该消息没有可停止的任务。",
         fire_and_forget=False,
         message_thread_id=None,
     )
@@ -175,7 +175,7 @@ async def test_handle_message_stats_command(
 
     mock_platform.queue_send_message.assert_called_once()
     args, kwargs = mock_platform.queue_send_message.call_args
-    assert "Active CLI: 2" in args[1]
+    assert "活跃 CLI:2" in args[1]
     assert kwargs["fire_and_forget"] is False
     assert kwargs.get("message_thread_id") is None
 
@@ -237,7 +237,7 @@ async def test_handle_message_queued(handler, mock_platform, incoming_message_fa
     mock_platform.queue_edit_message.assert_called_once_with(
         incoming.chat_id,
         "status_123",
-        "📋 *Queued* \\(position 3\\) \\- waiting\\.\\.\\.",
+        "📋 *排队中* \\(第 3 位\\)\\- 等待中\\.\\.\\.",
         parse_mode="MarkdownV2",
     )
 
@@ -297,10 +297,10 @@ async def test_update_queue_positions(handler, mock_platform):
     assert len(calls) == 2
     assert calls[0][0][0] == "chat_1"
     assert calls[0][0][1] == "status_1"
-    assert "position 1" in calls[0][0][2]
+    assert "第 1 位" in calls[0][0][2]
     assert calls[1][0][0] == "chat_1"
     assert calls[1][0][1] == "status_2"
-    assert "position 2" in calls[1][0][2]
+    assert "第 2 位" in calls[1][0][2]
 
 
 @pytest.mark.asyncio
@@ -341,7 +341,7 @@ async def test_mark_node_processing(handler, mock_platform):
     args, kwargs = mock_platform.queue_edit_message.call_args
     assert args[0] == "chat_1"
     assert args[1] == "status_child"
-    assert "Processing" in args[2]
+    assert "处理中" in args[2]
     assert kwargs["parse_mode"] == "MarkdownV2"
 
 
@@ -665,7 +665,7 @@ async def test_handle_message_clear_command_reply_unknown_sends_nothing(
 
     mock_platform.queue_send_message.assert_called_once()
     call_args = mock_platform.queue_send_message.call_args[0]
-    assert "Nothing to clear" in call_args[1]
+    assert "该消息没有可清除的内容" in call_args[1]
     mock_session_store.clear_all.assert_not_called()
 
 
@@ -732,4 +732,4 @@ async def test_handle_message_clear_command_reply_pending_voice_cancels(
     mock_platform.cancel_pending_voice.assert_called_once_with("chat_1", "100")
     assert set(deleted_ids) == {"100", "101", "150"}
     call_args = mock_platform.queue_send_message.call_args[0]
-    assert "Voice note cancelled" in call_args[1]
+    assert "语音备注已取消" in call_args[1]
