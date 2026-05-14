@@ -1,0 +1,27 @@
+- generic [active] [ref=e1]:
+  - heading "BridgeAI Proxy" [level=1] [ref=e2]
+  - heading "新增 provider" [level=2] [ref=e3]
+  - generic [ref=e4]:
+    - textbox "名称" [ref=e5]
+    - textbox "API 地址，例如 http://127.0.0.1:11434" [ref=e6]
+    - textbox "API Key" [ref=e7]
+    - textbox "模型 ID" [ref=e8]
+    - combobox [ref=e9]:
+      - option "OpenAI-compatible" [selected]
+      - option "Anthropic-compatible"
+    - generic [ref=e10]:
+      - checkbox "保存后设为当前启用" [ref=e11]
+      - text: 保存后设为当前启用
+    - button "保存" [ref=e12]
+  - heading "Providers" [level=2] [ref=e13]
+  - table [ref=e14]:
+    - rowgroup [ref=e15]:
+      - row "ID 名称 地址 模型 协议 状态 操作" [ref=e16]:
+        - columnheader "ID" [ref=e17]
+        - columnheader "名称" [ref=e18]
+        - columnheader "地址" [ref=e19]
+        - columnheader "模型" [ref=e20]
+        - columnheader "协议" [ref=e21]
+        - columnheader "状态" [ref=e22]
+        - columnheader "操作" [ref=e23]
+    - rowgroup
